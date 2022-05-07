@@ -18,9 +18,14 @@
 package org.apache.inlong.manager.test;
 
 import org.junit.runner.RunWith;
+import org.mvnsearch.h2.H2FunctionsLoader;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.ActiveProfiles;
+
+import javax.annotation.PostConstruct;
+import javax.sql.DataSource;
 import org.springframework.test.context.junit4.SpringRunner;
 
 @ActiveProfiles(value = {"test"})
@@ -29,4 +34,11 @@ import org.springframework.test.context.junit4.SpringRunner;
 @RunWith(SpringRunner.class)
 public class BaseTest {
 
+    @Autowired
+    DataSource dataSource;
+
+    @PostConstruct
+    public void initH2Function() {
+        H2FunctionsLoader.loadMysqlFunctions(dataSource);
+    }
 }

@@ -21,8 +21,10 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
+import org.apache.inlong.manager.common.pojo.stream.InlongStreamFieldInfo;
 
 import java.util.Date;
+import java.util.List;
 
 /**
  * Response of the stream source
@@ -42,6 +44,9 @@ public class SourceResponse {
     @ApiModelProperty("Source type, including: FILE, KAFKA, etc.")
     private String sourceType;
 
+    @ApiModelProperty("Source name, unique in one stream.")
+    private String sourceName;
+
     @ApiModelProperty("Ip of the agent running the task")
     private String agentIp;
 
@@ -51,17 +56,17 @@ public class SourceResponse {
     @ApiModelProperty("Id of the source server")
     private Integer serverId;
 
-    @ApiModelProperty("Name of the source server")
-    private String serverName;
-
     @ApiModelProperty("Id of the cluster that collected this source")
     private Integer clusterId;
 
-    @ApiModelProperty("Name of the cluster that collected this source")
-    private String clusterName;
+    @ApiModelProperty("Data Serialization, support: csv, json, canal, avro, etc")
+    private String serializationType;
 
-    @ApiModelProperty("Heartbeat of this source task")
-    private String heartbeat;
+    @ApiModelProperty("Snapshot of this source task")
+    private String snapshot;
+
+    @ApiModelProperty("Version")
+    private Integer version;
 
     @ApiModelProperty("Status")
     private Integer status;
@@ -80,5 +85,8 @@ public class SourceResponse {
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date modifyTime;
+
+    @ApiModelProperty(value = "Field list")
+    private List<InlongStreamFieldInfo> fieldList;
 
 }

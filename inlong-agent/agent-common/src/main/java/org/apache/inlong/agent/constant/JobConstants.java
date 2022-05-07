@@ -27,12 +27,15 @@ public class JobConstants extends CommonConstants {
     public static final String JOB_INSTANCE_ID = "job.instance.id";
     public static final String JOB_IP = "job.ip";
     public static final String JOB_RETRY = "job.retry";
+    public static final String JOB_UUID = "job.uuid";
 
-    public static final String JOB_SOURCE = "job.source";
+    public static final String JOB_SOURCE_CLASS = "job.source";
+    public static final String JOB_SOURCE_TYPE = "job.sourceType";
 
     public static final String JOB_SINK = "job.sink";
     public static final String JOB_CHANNEL = "job.channel";
     public static final String JOB_NAME = "job.name";
+    public static final String JOB_LINE_FILTER_PATTERN = "job.pattern";
 
     public static final String DEFAULT_JOB_NAME = "default";
     public static final String JOB_DESCRIPTION = "job.description";
@@ -40,38 +43,41 @@ public class JobConstants extends CommonConstants {
     public static final String DEFAULT_JOB_LINE_FILTER = "";
 
     //File job
-    public static final String JOB_TRIGGER = "job.filejob.trigger";
-    public static final String JOB_LINE_FILTER_PATTERN = "job.filejob.dir.pattern";
-    public static final String JOB_DIR_FILTER_PATTERN = "job.filejob.dir.pattern";
-    public static final String JOB_FILE_TIME_OFFSET = "job.filejob.timeOffset";
-    public static final String JOB_FILE_MAX_WAIT = "job.filejob.file.max.wait";
-    public static final String JOB_ADDITION_STR = "job.filejob.additionStr";
-    public static final String JOB_CYCLE_UNIT = "job.filejob.cycleUnit";
-
-    public static final String JOB_DIR_FILTER_PATH = "job.filejob.dir.path";
+    public static final String JOB_TRIGGER = "job.fileJob.trigger";
+    public static final String JOB_DIR_FILTER_PATTERN = "job.fileJob.dir.pattern";
+    public static final String JOB_FILE_TIME_OFFSET = "job.fileJob.timeOffset";
+    public static final String JOB_FILE_MAX_WAIT = "job.fileJob.file.max.wait";
+    public static final String JOB_CYCLE_UNIT = "job.fileJob.cycleUnit";
 
     //Binlog job
-    private static final String JOB_DATABASE_USER = "job.binlogjob.user";
-    private static final String JOB_DATABASE_PASSWORD = "job.binlogjob.password";
-    private static final String JOB_DATABASE_HOSTNAME = "job.binlogjob.hostname";
-    private static final String JOB_DATABASE_WHITELIST = "job.binlogjob.tableWhiteList";
-    private static final String JOB_DATABASE_SERVER_TIME_ZONE = "job.binlogjob.database.serverTimezone";
-    private static final String JOB_DATABASE_STORE_OFFSET_INTERVAL_MS = "offset.binlogjob.offset.flush.interval.ms";
-    private static final String JOB_DATABASE_STORE_HISTORY_FILENAME = "job.binlogjob.database.history.file.filename";
-    private static final String JOB_DATABASE_SNAPSHOT_MODE = "job.binlogjob.database.snapshot.mode";
-    private static final  String JOB_DATABASE_OFFSET = "job.binlogjob.database.offset";
+    public static final String JOB_DATABASE_USER = "job.binlogJob.user";
+    public static final String JOB_DATABASE_PASSWORD = "job.binlogJob.password";
+    public static final String JOB_DATABASE_HOSTNAME = "job.binlogJob.hostname";
+    public static final String JOB_TABLE_WHITELIST = "job.binlogJob.tableWhiteList";
+    public static final String JOB_DATABASE_WHITELIST = "job.binlogJob.databaseWhiteList";
+    public static final String JOB_DATABASE_OFFSETS = "job.binlogJob.offsets";
+    public static final String JOB_DATABASE_OFFSET_FILENAME = "job.binlogJob.offset.filename";
+
+    public static final String JOB_DATABASE_SERVER_TIME_ZONE = "job.binlogJob.serverTimezone";
+    public static final String JOB_DATABASE_STORE_OFFSET_INTERVAL_MS = "job.binlogJob.offset.intervalMs";
+
+    public static final String JOB_DATABASE_STORE_HISTORY_FILENAME = "job.binlogJob.history.filename";
+    public static final String JOB_DATABASE_INCLUDE_SCHEMA_CHANGES = "job.binlogJob.schema";
+    public static final String JOB_DATABASE_SNAPSHOT_MODE = "job.binlogJob.snapshot.mode";
+    public static final String JOB_DATABASE_HISTORY_MONITOR_DDL = "job.binlogJob.ddl";
+    public static final String JOB_DATABASE_PORT = "job.binlogJob.port";
 
     //Kafka job
-    private static final  String SOURCE_KAFKA_TOPIC = "job.kafkajob.topic";
-    private static final  String SOURCE_KAFKA_KEY_DESERIALIZER = "job.kafkajob.key.deserializer";
-    private static final  String SOURCE_KAFKA_VALUE_DESERIALIZER = "job.kafkajob.value.Deserializer";
-    private static final  String SOURCE_KAFKA_BOOTSTRAP_SERVERS = "job.kafkajob.bootstrap.servers";
-    private static final  String SOURCE_KAFKA_GROUP_ID = "job.kafkajob.group.Id";
-    private static final  String SOURCE_KAFKA_RECORD_SPEED = "job.kafkajob.record.speed";
-    private static final  String SOURCE_KAFKA_BYTE_SPEED_LIMIT = "job.kafkajob.byte.speed.limit";
-    private static final  String SOURCE_KAFKA_MIN_INTERVAL = "job.kafkajob.min.interval";
-    private static final  String SOURCE_KAFKA_OFFSET = "job.kafkajob.offset";
-    private static final  String SOURCE_KAFKA_READ_TIMEOUT = "job.kafkajob.read.timeout";
+    public static final String JOB_KAFKA_TOPIC = "job.kafkaJob.topic";
+    public static final String JOB_KAFKA_BOOTSTRAP_SERVERS = "job.kafkaJob.bootstrap.servers";
+    public static final String JOB_KAFKA_GROUP_ID = "job.kafkaJob.group.id";
+    public static final String JOB_KAFKA_RECORD_SPEED_LIMIT = "job.kafkaJob.recordSpeed.limit";
+    public static final String JOB_KAFKA_BYTE_SPEED_LIMIT = "job.kafkaJob.byteSpeed.limit";
+    public static final String JOB_KAFKA_OFFSET = "job.kafkaJob.partition.offset";
+    public static final String JOB_KAFKA_READ_TIMEOUT = "job.kafkaJob.read.timeout";
+    public static final String JOB_KAFKA_AUTO_COMMIT_OFFSET_RESET = "job.kafkaJob.autoOffsetReset";
+
+    public static final Long JOB_KAFKA_DEFAULT_OFFSET = 0L;
 
     // job type, delete/add
     public static final String JOB_TYPE = "job.type";
@@ -110,5 +116,21 @@ public class JobConstants extends CommonConstants {
      * when job is retried, the retry time should be provided
      */
     public static final String JOB_RETRY_TIME = "job.retryTime";
+
+    /**
+     * delimiter to split offset for different task
+     */
+    public static final String JOB_OFFSET_DELIMITER = "_";
+
+    /**
+     * delimiter to split all partition offset for all kafka tasks
+     */
+    public static final String JOB_KAFKA_PARTITION_OFFSET_DELIMITER = "#";
+
+    /**
+     * sync send data when sending to DataProxy
+     */
+    public static final int SYNC_SEND_OPEN = 1;
+
 
 }

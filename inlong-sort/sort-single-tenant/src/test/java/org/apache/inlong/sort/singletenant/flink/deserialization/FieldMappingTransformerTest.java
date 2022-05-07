@@ -17,7 +17,9 @@
 
 package org.apache.inlong.sort.singletenant.flink.deserialization;
 
+import java.util.HashMap;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 import org.apache.inlong.sort.configuration.Configuration;
 import org.apache.inlong.sort.formats.common.IntFormatInfo;
 import org.apache.inlong.sort.formats.common.LongFormatInfo;
@@ -25,6 +27,7 @@ import org.apache.inlong.sort.formats.common.ShortFormatInfo;
 import org.apache.inlong.sort.formats.common.StringFormatInfo;
 import org.apache.inlong.sort.formats.common.TimestampFormatInfo;
 import org.apache.inlong.sort.protocol.BuiltInFieldInfo;
+import org.apache.inlong.sort.protocol.BuiltInFieldInfo.BuiltInField;
 import org.apache.inlong.sort.protocol.FieldInfo;
 import org.junit.Test;
 
@@ -45,7 +48,8 @@ public class FieldMappingTransformerTest {
                 new FieldInfo("f2", StringFormatInfo.INSTANCE),
                 new FieldInfo("f3", IntFormatInfo.INSTANCE),
                 new FieldInfo("f4", ShortFormatInfo.INSTANCE),
-                new FieldInfo("f5", LongFormatInfo.INSTANCE)
+                new FieldInfo("f5", LongFormatInfo.INSTANCE),
+                new BuiltInFieldInfo("event_type", new StringFormatInfo(), BuiltInField.MYSQL_METADATA_EVENT_TYPE)
         };
         final long ms = 10000000000L;
         final Configuration configuration = new Configuration();
@@ -53,14 +57,16 @@ public class FieldMappingTransformerTest {
         configuration.setBoolean(SINK_FIELD_TYPE_SHORT_NULLABLE, false);
         configuration.setBoolean(SINK_FIELD_TYPE_LONG_NULLABLE, false);
         FieldMappingTransformer transformer = new FieldMappingTransformer(configuration, fieldInfos);
-        Row resultRow = transformer.transform(Row.of(1), ms);
+        Row resultRow = transformer.transform(Row.of(new HashMap<>(), 1), ms);
+        resultRow.setKind(RowKind.UPDATE_AFTER);
 
-        assertEquals(6, resultRow.getArity());
+        assertEquals(7, resultRow.getArity());
         assertEquals(new Timestamp(ms), resultRow.getField(0));
         assertEquals(1, resultRow.getField(1));
         assertEquals("", resultRow.getField(2));
         assertEquals(0, resultRow.getField(3));
         assertEquals(0, resultRow.getField(4));
         assertEquals(0L, resultRow.getField(5));
+        assertEquals("INSERT", resultRow.getField(6));
     }
 }

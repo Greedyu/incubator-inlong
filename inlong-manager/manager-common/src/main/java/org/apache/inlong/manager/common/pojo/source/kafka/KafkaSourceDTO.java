@@ -32,31 +32,80 @@ import javax.validation.constraints.NotNull;
 /**
  * kafka source information data transfer object.
  */
+@Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@Data
 public class KafkaSourceDTO {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    @ApiModelProperty("Kafka bootstrap servers")
-    private String address;
+    @ApiModelProperty("Kafka topic")
+    private String topic;
 
-    @ApiModelProperty("Kafka topicName")
-    private String topicName;
+    @ApiModelProperty("Kafka consumer group")
+    private String groupId;
 
-    @ApiModelProperty("Data Serialization, support: Json, Canal, Avro")
+    @ApiModelProperty("Kafka servers address, such as: 127.0.0.1:9092")
+    private String bootstrapServers;
+
+    @ApiModelProperty(value = "Limit the amount of data read per second",
+            notes = "Greater than or equal to 0, equal to zero means no limit")
+    private String recordSpeedLimit;
+
+    @ApiModelProperty(value = "Limit the number of bytes read per second",
+            notes = "Greater than or equal to 0, equal to zero means no limit")
+    private String byteSpeedLimit;
+
+    @ApiModelProperty(value = "Topic partition offset",
+            notes = "For example, '0#100_1#10' means the offset of partition 0 is 100, the offset of partition 1 is 10")
+    private String topicPartitionOffset;
+
+    /**
+     * The strategy of auto offset reset.
+     *
+     * @see <a href="https://docs.confluent.io/platform/current/clients/consumer.html">Kafka_consumer_config</a>
+     */
+    @ApiModelProperty(value = "The strategy of auto offset reset",
+            notes = "including earliest, latest (the default), none")
+    private String autoOffsetReset;
+
+    @ApiModelProperty("Data Serialization, support: json, canal, avro, etc")
     private String serializationType;
+
+    @ApiModelProperty("database pattern used for filter in canal format")
+    private String databasePattern;
+
+    @ApiModelProperty("table pattern used for filter in canal format")
+    private String tablePattern;
+
+    @ApiModelProperty("ignore parse errors, true: ignore parse error; false: not ignore parse error; default true")
+    private boolean ignoreParseErrors;
+
+    @ApiModelProperty("Timestamp standard for binlog: SQL, ISO_8601")
+    private String timestampFormatStandard;
+
+    @ApiModelProperty("Field needed when serializationType is csv,json,avro")
+    private String primaryKey;
 
     /**
      * Get the dto instance from the request
      */
     public static KafkaSourceDTO getFromRequest(KafkaSourceRequest request) {
         return KafkaSourceDTO.builder()
-                .address(request.getAddress())
-                .topicName(request.getTopicName())
+                .topic(request.getTopic())
+                .groupId(request.getGroupId())
+                .bootstrapServers(request.getBootstrapServers())
+                .recordSpeedLimit(request.getRecordSpeedLimit())
+                .byteSpeedLimit(request.getByteSpeedLimit())
+                .topicPartitionOffset(request.getTopicPartitionOffset())
+                .autoOffsetReset(request.getAutoOffsetReset())
                 .serializationType(request.getSerializationType())
+                .databasePattern(request.getDatabasePattern())
+                .tablePattern(request.getTablePattern())
+                .ignoreParseErrors(request.isIgnoreParseErrors())
+                .timestampFormatStandard(request.getTimestampFormatStandard())
+                .primaryKey(request.getPrimaryKey())
                 .build();
     }
 

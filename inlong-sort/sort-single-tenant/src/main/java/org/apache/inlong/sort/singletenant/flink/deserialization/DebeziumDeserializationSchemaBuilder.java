@@ -18,25 +18,36 @@
 
 package org.apache.inlong.sort.singletenant.flink.deserialization;
 
+import static org.apache.flink.table.types.utils.DataTypeUtils.validateInputDataType;
+import static org.apache.inlong.sort.singletenant.flink.utils.CommonUtils.checkWhetherMigrateAll;
+import static org.apache.inlong.sort.singletenant.flink.utils.CommonUtils.convertDateToStringFormatInfo;
+import static org.apache.inlong.sort.singletenant.flink.utils.CommonUtils.convertFieldInfosToDataType;
+import static org.apache.inlong.sort.singletenant.flink.utils.CommonUtils.extractFormatInfos;
+import static org.apache.inlong.sort.singletenant.flink.utils.CommonUtils.getProducedFieldInfos;
+import static org.apache.inlong.sort.singletenant.flink.utils.CommonUtils.getTimestampFormatStandard;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.common.TimestampFormat;
-import org.apache.flink.formats.json.debezium.DebeziumJsonDecodingFormat;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
+import org.apache.inlong.sort.formats.common.LongFormatInfo;
+import org.apache.inlong.sort.formats.common.StringFormatInfo;
+import org.apache.inlong.sort.formats.json.debezium.DebeziumJsonDecodingFormat;
+import org.apache.inlong.sort.formats.json.debezium.DebeziumJsonDecodingFormat.ReadableMetadata;
+import org.apache.inlong.sort.protocol.BuiltInFieldInfo;
+import org.apache.inlong.sort.protocol.BuiltInFieldInfo.BuiltInField;
 import org.apache.inlong.sort.protocol.FieldInfo;
 import org.apache.inlong.sort.protocol.deserialization.DebeziumDeserializationInfo;
-
-import java.io.IOException;
-
-import static org.apache.flink.table.types.utils.DataTypeUtils.validateInputDataType;
-import static org.apache.inlong.sort.singletenant.flink.utils.CommonUtils.convertDateToStringFormatInfo;
-import static org.apache.inlong.sort.singletenant.flink.utils.CommonUtils.convertFieldInfosToDataType;
-import static org.apache.inlong.sort.singletenant.flink.utils.CommonUtils.extractFormatInfos;
-import static org.apache.inlong.sort.singletenant.flink.utils.CommonUtils.getTimestampFormatStandard;
+import org.apache.inlong.sort.singletenant.flink.utils.CommonUtils;
 
 public class DebeziumDeserializationSchemaBuilder {
 
@@ -45,10 +56,23 @@ public class DebeziumDeserializationSchemaBuilder {
             DebeziumDeserializationInfo deserializationInfo
     ) throws IOException, ClassNotFoundException {
         TimestampFormat timestampFormat = getTimestampFormatStandard(deserializationInfo.getTimestampFormatStandard());
-        DebeziumJsonDecodingFormat debeziumJsonDecodingFormat =
-                new DebeziumJsonDecodingFormat(false, deserializationInfo.isIgnoreParseErrors(), timestampFormat);
+        DebeziumJsonDecodingFormat debeziumJsonDecodingFormat = new DebeziumJsonDecodingFormat(
+                false,
+                deserializationInfo.isIncludeUpdateBefore(),
+                deserializationInfo.isIgnoreParseErrors(),
+                timestampFormat,
+                checkWhetherMigrateAll(fieldInfos)
+        );
 
-        FieldInfo[] convertedInputFields = convertDateToStringFormatInfo(fieldInfos);
+        // Extract required metadata
+        FieldInfo[] metadataFieldInfos = getMetadataFieldInfos(fieldInfos);
+        List<String> requiredMetadataKeys = Arrays.stream(metadataFieldInfos)
+                .map(FieldInfo::getName)
+                .collect(Collectors.toList());
+        debeziumJsonDecodingFormat.applyReadableMetadata(requiredMetadataKeys);
+
+        FieldInfo[] originPhysicalFieldInfos = CommonUtils.extractNonBuiltInFieldInfos(fieldInfos, false);
+        FieldInfo[] convertedPhysicalFieldInfos = convertDateToStringFormatInfo(originPhysicalFieldInfos);
         DeserializationSchema<RowData> debeziumSchema = debeziumJsonDecodingFormat.createRuntimeDecoder(
                 new DynamicTableSource.Context() {
                     @Override
@@ -62,12 +86,47 @@ public class DebeziumDeserializationSchemaBuilder {
                         return null;
                     }
                 },
-                convertFieldInfosToDataType(convertedInputFields)
+                convertFieldInfosToDataType(convertedPhysicalFieldInfos)
         );
 
-        RowDataToRowDeserializationSchemaWrapper rowDataToRowSchema =
-                new RowDataToRowDeserializationSchemaWrapper(debeziumSchema, convertedInputFields);
-        return new CustomDateFormatDeserializationSchemaWrapper(rowDataToRowSchema, extractFormatInfos(fieldInfos));
+        RowDataToRowDeserializationSchemaWrapper rowDataToRowSchema = new RowDataToRowDeserializationSchemaWrapper(
+                debeziumSchema,
+                getProducedFieldInfos(convertedPhysicalFieldInfos));
+        return new CustomDateFormatDeserializationSchemaWrapper(
+                rowDataToRowSchema,
+                extractFormatInfos(getProducedFieldInfos(originPhysicalFieldInfos)));
     }
 
+    public static FieldInfo[] getMetadataFieldInfos(FieldInfo[] fieldInfos) {
+        List<FieldInfo> metadataFieldInfos = new ArrayList<>();
+        Arrays.stream(fieldInfos)
+                .filter(fieldInfo -> fieldInfo instanceof BuiltInFieldInfo)
+                .forEach(fieldInfo -> {
+                    BuiltInFieldInfo builtInFieldInfo = (BuiltInFieldInfo) fieldInfo;
+                    BuiltInField builtInField = builtInFieldInfo.getBuiltInField();
+                    switch (builtInField) {
+                        case MYSQL_METADATA_DATABASE:
+                            metadataFieldInfos.add(new FieldInfo(
+                                    ReadableMetadata.SOURCE_DATABASE.getKey(), StringFormatInfo.INSTANCE));
+                            break;
+                        case MYSQL_METADATA_TABLE:
+                            metadataFieldInfos.add(new FieldInfo(
+                                    ReadableMetadata.SOURCE_TABLE.getKey(), StringFormatInfo.INSTANCE));
+                            break;
+                        case MYSQL_METADATA_EVENT_TIME:
+                            metadataFieldInfos.add(new FieldInfo(
+                                    ReadableMetadata.INGESTION_TIMESTAMP.getKey(), LongFormatInfo.INSTANCE));
+                            break;
+                        case MYSQL_METADATA_IS_DDL:
+                        case MYSQL_METADATA_EVENT_TYPE:
+                        case MYSQL_METADATA_DATA:
+                            break;
+                        default:
+                            throw new IllegalArgumentException(
+                                    "Unsupported builtin field '" + builtInField + "' in debezium deserialization");
+                    }
+                });
+
+        return metadataFieldInfos.toArray(new FieldInfo[0]);
+    }
 }

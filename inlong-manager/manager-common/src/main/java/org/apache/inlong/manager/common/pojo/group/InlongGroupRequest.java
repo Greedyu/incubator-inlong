@@ -17,7 +17,6 @@
 
 package org.apache.inlong.manager.common.pojo.group;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.AllArgsConstructor;
@@ -26,21 +25,17 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import javax.validation.constraints.NotNull;
-import java.util.Date;
 import java.util.List;
 
 /**
- * Inlong group info
+ * Inlong group request
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@ApiModel("Inlong group info")
+@ApiModel("Inlong group create request")
 public class InlongGroupRequest {
-
-    @ApiModelProperty(value = "Primary key")
-    private Integer id;
 
     @ApiModelProperty(value = "Inlong group id", required = true)
     private String inlongGroupId;
@@ -78,8 +73,8 @@ public class InlongGroupRequest {
     @ApiModelProperty(value = "Pulsar service URL")
     private String pulsarServiceUrl;
 
-    @ApiModelProperty(value = "Need zookeeper support, 0 false 1 true")
-    private Integer zookeeperEnabled = 1;
+    @ApiModelProperty(value = "Whether zookeeper enabled? 0: disabled, 1: enabled")
+    private Integer zookeeperEnabled = 0;
 
     @ApiModelProperty(value = "Data type name")
     private String schemaName;
@@ -102,23 +97,14 @@ public class InlongGroupRequest {
     @ApiModelProperty(value = "Name of followers, separated by commas")
     private String followers;
 
-    private Integer status;
-
-    @ApiModelProperty(value = "is deleted? 0: deleted, 1: not deleted")
-    private Integer isDeleted = 0;
-
+    @ApiModelProperty(value = "Name of creator")
     private String creator;
-
-    private String modifier;
-
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private Date createTime;
-
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private Date modifyTime;
 
     @ApiModelProperty(value = "Temporary view, string in JSON format")
     private String tempView;
+
+    @ApiModelProperty(value = "data proxy cluster id")
+    private Integer proxyClusterId;
 
     @ApiModelProperty(value = "Inlong group Extension properties")
     private List<InlongGroupExtInfo> extList;

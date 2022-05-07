@@ -39,7 +39,7 @@ public class InlongGroupConf {
     private String description;
 
     @ApiModelProperty("Message queue configuration")
-    private MqBaseConf mqBaseConf;
+    private MQBaseConf mqBaseConf;
 
     @ApiModelProperty("Sort configuration")
     private SortBaseConf sortBaseConf;
@@ -58,4 +58,10 @@ public class InlongGroupConf {
 
     @ApiModelProperty("Need zookeeper support")
     private boolean zookeeperEnabled = true;
+
+    @ApiModelProperty("Data proxy cluster id")
+    private Integer proxyClusterId;
+
+    @ApiModelProperty("Use lightweight group")
+    private boolean lightweight = false;
 }

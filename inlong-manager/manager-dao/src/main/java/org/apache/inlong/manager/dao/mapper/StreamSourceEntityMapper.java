@@ -18,8 +18,6 @@
 package org.apache.inlong.manager.dao.mapper;
 
 import org.apache.ibatis.annotations.Param;
-import org.apache.inlong.common.pojo.agent.DataConfig;
-import org.apache.inlong.common.pojo.agent.TaskRequest;
 import org.apache.inlong.manager.common.pojo.source.SourcePageRequest;
 import org.apache.inlong.manager.dao.entity.StreamSourceEntity;
 import org.springframework.stereotype.Repository;
@@ -31,46 +29,54 @@ public interface StreamSourceEntityMapper {
 
     int insert(StreamSourceEntity record);
 
-    int insertSelective(StreamSourceEntity record);
+    StreamSourceEntity selectById(Integer id);
 
-    StreamSourceEntity selectByPrimaryKey(Integer id);
+    StreamSourceEntity selectByIdForUpdate(Integer id);
+
+    /**
+     * Query un-deleted sources by the given agentIp.
+     */
+    List<StreamSourceEntity> selectByAgentIp(@Param("agentIp") String agentIp);
 
     /**
      * According to the inlong group id and inlong stream id, query the number of valid source
-     *
-     * @param groupId inlong group id
-     * @param streamId inlong stream id
-     * @return Source entity size
      */
     int selectCount(@Param("groupId") String groupId, @Param("streamId") String streamId);
 
     /**
      * Paging query source list based on conditions
-     *
-     * @param request Paging query conditions
-     * @return Source entity list
      */
     List<StreamSourceEntity> selectByCondition(@Param("request") SourcePageRequest request);
 
     /**
-     * According to the inlong group id and inlong stream id, query valid source information
-     *
-     * @param groupId inlong group id
-     * @param streamId inlong stream id
-     * @return Source entity list
+     * Query valid source list by the given group id, stream id and source name.
      */
-    List<StreamSourceEntity> selectByIdentifier(@Param("groupId") String groupId, @Param("streamId") String streamId);
+    List<StreamSourceEntity> selectByRelatedId(@Param("groupId") String groupId, @Param("streamId") String streamId,
+            @Param("sourceName") String sourceName);
 
     /**
-     * According to the group id, stream id and source type, query valid source entity list.
-     *
-     * @param groupId Inlong group id.
-     * @param streamId Inlong stream id.
-     * @param sourceType Source type.
-     * @return Source entity list.
+     * Query the tasks by the given status list.
      */
-    List<StreamSourceEntity> selectByIdAndType(@Param("groupId") String groupId, @Param("streamId") String streamId,
-            @Param("sourceType") String sourceType);
+    List<StreamSourceEntity> selectByStatus(@Param("list") List<Integer> list, @Param("limit") int limit);
+
+    /**
+     * Query the tasks by the given status list and type List.
+     */
+    List<StreamSourceEntity> selectByStatusAndType(@Param("list") List<Integer> list,
+            @Param("sourceType") List<String> sourceTypes, @Param("limit") int limit);
+
+    /**
+     * Query the sources with status 20x by the given agent IP and agent UUID.
+     *
+     * @apiNote Sources with is_deleted > 0 need to be filtered.
+     */
+    List<StreamSourceEntity> selectByStatusAndIp(@Param("statusList") List<Integer> statusList,
+            @Param("agentIp") String agentIp, @Param("uuid") String uuid);
+
+    /**
+     * Select all sources by groupIds
+     */
+    List<StreamSourceEntity> selectByGroupIds(@Param("groupIds") List<String> groupIds);
 
     /**
      * Get the distinct source type from the given groupId and streamId
@@ -81,12 +87,28 @@ public interface StreamSourceEntityMapper {
 
     int updateByPrimaryKey(StreamSourceEntity record);
 
-    int updateStatus(StreamSourceEntity entity);
+    /**
+     * Update the status to `nextStatus` by the given id.
+     */
+    int updateStatus(@Param("id") Integer id, @Param("nextStatus") Integer nextStatus,
+            @Param("changeTime") Boolean changeModifyTime);
+
+    /**
+     * Update the status to `nextStatus` by the given group id and stream id.
+     *
+     * @apiNote Should not change the modify_time
+     */
+    int updateStatusByRelatedId(@Param("groupId") String groupId, @Param("streamId") String streamId,
+            @Param("nextStatus") Integer nextStatus);
+
+    /**
+     * Update the agentIp and uuid.
+     */
+    int updateIpAndUuid(@Param("id") Integer id, @Param("agentIp") String agentIp, @Param("uuid") String uuid,
+            @Param("changeTime") Boolean changeModifyTime);
 
     int updateSnapshot(StreamSourceEntity entity);
 
-    int deleteByPrimaryKey(Integer id);
-
-    List<DataConfig> selectAgentTaskDataConfig(TaskRequest taskRequest);
+    int deleteByRelatedId(@Param("groupId") String groupId, @Param("streamId") String streamId);
 
 }

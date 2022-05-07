@@ -17,26 +17,29 @@
 
 package org.apache.inlong.common.db;
 
-import com.sleepycat.persist.model.Entity;
-import com.sleepycat.persist.model.PrimaryKey;
-import com.sleepycat.persist.model.Relationship;
-import com.sleepycat.persist.model.SecondaryKey;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-@Entity(version = 1)
+/**
+ * The entity of task command, used for Agent to interact with Manager and BDB.
+ */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class CommandEntity {
 
-    @PrimaryKey
     private String id;
     private int commandResult;
-    @SecondaryKey(relate = Relationship.MANY_TO_ONE)
     private boolean isAcked;
-    private String taskId;
+    private Integer taskId;
+    /**
+     * The task version.
+     */
+    private Integer version;
+    /**
+     * The task delivery time, format is 'yyyy-MM-dd HH:mm:ss'.
+     */
     private String deliveryTime;
 
     public static String generateCommandId(String taskId, int opType) {

@@ -28,6 +28,8 @@ import org.apache.inlong.manager.common.enums.ErrorCodeEnum;
 import org.apache.inlong.manager.common.exceptions.BusinessException;
 
 import javax.validation.constraints.NotNull;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Hive sink info
@@ -55,23 +57,14 @@ public class HiveSinkDTO {
     @ApiModelProperty("Target table name")
     private String tableName;
 
-    @ApiModelProperty("HDFS defaultFS")
-    private String hdfsDefaultFs;
-
-    @ApiModelProperty("Warehouse directory")
-    private String warehouseDir;
+    @ApiModelProperty("Data path, such as: hdfs://ip:port/user/hive/warehouse/test.db")
+    private String dataPath;
 
     @ApiModelProperty("Partition interval, support: 1 H, 1 D, 30 I, 10 I")
     private Integer partitionInterval;
 
-    @ApiModelProperty("Partition type, support: D-day, H-hour, I-minute")
-    private String partitionUnit;
-
-    @ApiModelProperty("Primary partition field")
-    private String primaryPartition;
-
-    @ApiModelProperty("Secondary partition field")
-    private String secondaryPartition;
+    @ApiModelProperty("Partition field list")
+    private List<HivePartitionField> partitionFieldList;
 
     @ApiModelProperty("Partition creation strategy, partition start, partition close")
     private String partitionCreationStrategy;
@@ -85,6 +78,15 @@ public class HiveSinkDTO {
     @ApiModelProperty("Data field separator")
     private String dataSeparator;
 
+    @ApiModelProperty("Properties for hive")
+    private Map<String, Object> properties;
+
+    @ApiModelProperty("Version for hive")
+    private String hiveVersion;
+
+    @ApiModelProperty("Config directory of hive, needed by sort in light mode")
+    private String hiveConfDir;
+
     /**
      * Get the dto instance from the request
      */
@@ -95,16 +97,16 @@ public class HiveSinkDTO {
                 .password(request.getPassword())
                 .dbName(request.getDbName())
                 .tableName(request.getTableName())
-                .hdfsDefaultFs(request.getHdfsDefaultFs())
-                .warehouseDir(request.getWarehouseDir())
+                .dataPath(request.getDataPath())
                 .partitionInterval(request.getPartitionInterval())
-                .partitionUnit(request.getPartitionUnit())
-                .primaryPartition(request.getPrimaryPartition())
-                .secondaryPartition(request.getSecondaryPartition())
+                .partitionFieldList(request.getPartitionFieldList())
                 .partitionCreationStrategy(request.getPartitionCreationStrategy())
                 .fileFormat(request.getFileFormat())
                 .dataEncoding(request.getDataEncoding())
                 .dataSeparator(request.getDataSeparator())
+                .hiveVersion(request.getHiveVersion())
+                .hiveConfDir(request.getHiveConfDir())
+                .properties(request.getProperties())
                 .build();
     }
 

@@ -19,26 +19,13 @@ package org.apache.inlong.manager.web.controller.openapi;
 
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
-import org.apache.inlong.common.pojo.agent.TaskSnapshotRequest;
 import org.apache.inlong.common.pojo.agent.TaskRequest;
 import org.apache.inlong.common.pojo.agent.TaskResult;
+import org.apache.inlong.common.pojo.agent.TaskSnapshotRequest;
 import org.apache.inlong.manager.common.beans.Response;
-import org.apache.inlong.manager.common.pojo.agent.AgentHeartbeatRequest;
-import org.apache.inlong.manager.common.pojo.agent.AgentStatusReportRequest;
-import org.apache.inlong.manager.common.pojo.agent.AgentSysConfig;
-import org.apache.inlong.manager.common.pojo.agent.AgentSysconfRequest;
-import org.apache.inlong.manager.common.pojo.agent.CheckAgentTaskConfRequest;
-import org.apache.inlong.manager.common.pojo.agent.ConfirmAgentIpRequest;
-import org.apache.inlong.manager.common.pojo.agent.FileAgentCommandInfo;
-import org.apache.inlong.manager.common.pojo.agent.FileAgentTaskConfig;
-import org.apache.inlong.manager.common.pojo.agent.FileAgentTaskInfo;
-import org.apache.inlong.manager.service.core.AgentHeartbeatService;
-import org.apache.inlong.manager.service.core.AgentSysConfigService;
-import org.apache.inlong.manager.service.core.AgentTaskService;
+import org.apache.inlong.manager.service.core.AgentService;
 import org.apache.inlong.manager.service.core.ThirdPartyClusterService;
-import org.apache.inlong.manager.service.source.StreamSourceService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -52,68 +39,27 @@ import java.util.List;
 public class AgentController {
 
     @Autowired
-    private StreamSourceService sourceService;
-    @Autowired
-    private AgentTaskService agentTaskService;
-    @Autowired
-    private AgentSysConfigService agentSysConfigService;
-    @Autowired
-    private AgentHeartbeatService heartbeatService;
+    private AgentService agentService;
     @Autowired
     private ThirdPartyClusterService thirdPartyClusterService;
 
-    @GetMapping("/getInLongManagerIp")
+    @PostMapping("/getManagerIpList")
     @ApiOperation(value = "Get inlong manager ip list")
     public Response<List<String>> getInLongManagerIp() {
         return Response.success(thirdPartyClusterService.listClusterIpByType("inlong-openapi"));
     }
 
-    @PostMapping("/getTask")
-    @ApiOperation(value = "Get source task config")
-    public Response<TaskResult> getTask(@RequestBody TaskRequest taskRequest) {
-        return Response.success(agentTaskService.getAgentTask(taskRequest));
-    }
-
     @PostMapping("/reportSnapshot")
     @ApiOperation(value = "Report source task snapshot")
-    public Response<Boolean> reportSnapshot(TaskSnapshotRequest request) {
-        return Response.success(sourceService.reportSnapshot(request));
+    public Response<Boolean> reportSnapshot(@RequestBody TaskSnapshotRequest request) {
+        return Response.success(agentService.reportSnapshot(request));
     }
 
-    @Deprecated
-    @PostMapping("/fileAgent/getTaskConf")
-    @ApiOperation(value = "Get file task")
-    public Response<FileAgentTaskInfo> getFileAgentTask(@RequestBody FileAgentCommandInfo info) {
-        return Response.success(agentTaskService.getFileAgentTask(info));
+    @PostMapping("/reportAndGetTask")
+    @ApiOperation(value = "Report task result and get next tasks")
+    public Response<TaskResult> reportAndGetTask(@RequestBody TaskRequest request) {
+        agentService.report(request);
+        return Response.success(agentService.getTaskResult(request));
     }
 
-    @PostMapping("/fileAgent/confirmAgentIp")
-    @ApiOperation(value = "Confirm current agent ip")
-    public Response<String> confirmAgentIp(@RequestBody ConfirmAgentIpRequest info) {
-        return Response.success(agentTaskService.confirmAgentIp(info));
-    }
-
-    @PostMapping("/fileAgent/getAgentSysConf")
-    @ApiOperation(value = "Get agent system config")
-    public Response<AgentSysConfig> getAgentSysConf(@RequestBody AgentSysconfRequest info) {
-        return Response.success(agentSysConfigService.getAgentSysConfig(info));
-    }
-
-    @PostMapping("/fileAgent/heartbeat")
-    @ApiOperation(value = "Report agent heartbeat")
-    public Response<String> heartbeat(@RequestBody AgentHeartbeatRequest info) {
-        return Response.success(heartbeatService.heartbeat(info));
-    }
-
-    @PostMapping("/fileAgent/checkAgentTaskConf")
-    @ApiOperation(value = "Check agent source config")
-    public Response<List<FileAgentTaskConfig>> checkAgentTaskConf(@RequestBody CheckAgentTaskConfRequest info) {
-        return Response.success(agentTaskService.checkAgentTaskConf(info));
-    }
-
-    @PostMapping("/fileAgent/reportAgentStatus")
-    @ApiOperation(value = "Report agent status")
-    public Response<String> reportAgentStatus(@RequestBody AgentStatusReportRequest info) {
-        return Response.success(agentTaskService.reportAgentStatus(info));
-    }
 }

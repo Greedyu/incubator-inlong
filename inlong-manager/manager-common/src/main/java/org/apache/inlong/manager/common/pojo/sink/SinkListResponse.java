@@ -19,6 +19,7 @@ package org.apache.inlong.manager.common.pojo.sink;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.annotations.ApiModelProperty;
+import java.util.Map;
 import lombok.Data;
 
 import java.util.Date;
@@ -44,8 +45,11 @@ public class SinkListResponse {
     @ApiModelProperty("Sink type, including: HIVE, ES, etc.")
     private String sinkType;
 
-    @ApiModelProperty("Sink period, unit: day")
-    private Integer storagePeriod;
+    @ApiModelProperty("Sink name, unique in one stream.")
+    private String sinkName;
+
+    @ApiModelProperty("Sink description")
+    private String description;
 
     @ApiModelProperty(value = "Whether to enable create sink resource? 0: disable, 1: enable. default is 1")
     private Integer enableCreateResource;
@@ -56,4 +60,6 @@ public class SinkListResponse {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date modifyTime;
 
+    @ApiModelProperty("Properties for sink")
+    private Map<String, Object> properties;
 }

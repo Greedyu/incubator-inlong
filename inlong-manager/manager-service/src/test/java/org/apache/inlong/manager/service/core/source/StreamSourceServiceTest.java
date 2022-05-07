@@ -17,9 +17,7 @@
 
 package org.apache.inlong.manager.service.core.source;
 
-import org.apache.inlong.common.pojo.agent.TaskSnapshotMessage;
-import org.apache.inlong.common.pojo.agent.TaskSnapshotRequest;
-import org.apache.inlong.manager.common.enums.Constant;
+import org.apache.inlong.manager.common.enums.SourceType;
 import org.apache.inlong.manager.common.pojo.source.SourceResponse;
 import org.apache.inlong.manager.common.pojo.source.binlog.BinlogSourceRequest;
 import org.apache.inlong.manager.common.pojo.source.binlog.BinlogSourceResponse;
@@ -31,9 +29,6 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.util.Collections;
-import java.util.Date;
-
 /**
  * Stream source service test
  */
@@ -41,7 +36,8 @@ public class StreamSourceServiceTest extends ServiceBaseTest {
 
     private final String globalGroupId = "b_group1";
     private final String globalStreamId = "stream1";
-    private final String globalOperator = "test_user";
+    private final String globalOperator = "admin";
+    private final String sourceName = "default";
 
     @Autowired
     private StreamSourceService sourceService;
@@ -54,8 +50,8 @@ public class StreamSourceServiceTest extends ServiceBaseTest {
         BinlogSourceRequest sourceInfo = new BinlogSourceRequest();
         sourceInfo.setInlongGroupId(globalGroupId);
         sourceInfo.setInlongStreamId(globalStreamId);
-        sourceInfo.setSourceType(Constant.SOURCE_DB_BINLOG);
-
+        sourceInfo.setSourceName(sourceName);
+        sourceInfo.setSourceType(SourceType.BINLOG.getType());
         return sourceService.save(sourceInfo, globalOperator);
     }
 
@@ -64,7 +60,7 @@ public class StreamSourceServiceTest extends ServiceBaseTest {
         Integer id = this.saveSource();
         Assert.assertNotNull(id);
 
-        boolean result = sourceService.delete(id, Constant.SOURCE_DB_BINLOG, globalOperator);
+        boolean result = sourceService.delete(id, SourceType.BINLOG.getType(), globalOperator);
         Assert.assertTrue(result);
     }
 
@@ -72,16 +68,16 @@ public class StreamSourceServiceTest extends ServiceBaseTest {
     public void testListByIdentifier() {
         Integer id = this.saveSource();
 
-        SourceResponse source = sourceService.get(id, Constant.SOURCE_DB_BINLOG);
+        SourceResponse source = sourceService.get(id, SourceType.BINLOG.getType());
         Assert.assertEquals(globalGroupId, source.getInlongGroupId());
 
-        sourceService.delete(id, Constant.SOURCE_DB_BINLOG, globalOperator);
+        sourceService.delete(id, SourceType.BINLOG.getType(), globalOperator);
     }
 
     @Test
     public void testGetAndUpdate() {
         Integer id = this.saveSource();
-        SourceResponse response = sourceService.get(id, Constant.SOURCE_DB_BINLOG);
+        SourceResponse response = sourceService.get(id, SourceType.BINLOG.getType());
         Assert.assertEquals(globalGroupId, response.getInlongGroupId());
 
         BinlogSourceResponse binlogResponse = (BinlogSourceResponse) response;
@@ -90,26 +86,7 @@ public class StreamSourceServiceTest extends ServiceBaseTest {
         boolean result = sourceService.update(request, globalOperator);
         Assert.assertTrue(result);
 
-        sourceService.delete(id, Constant.SOURCE_DB_BINLOG, globalOperator);
-    }
-
-    @Test
-    public void testReportSnapshot() {
-        Integer id = this.saveSource();
-
-        TaskSnapshotRequest request = new TaskSnapshotRequest();
-        request.setAgentIp("127.0.0.1");
-        request.setReportTime(new Date());
-
-        TaskSnapshotMessage message = new TaskSnapshotMessage();
-        message.setJobId(id);
-        message.setSnapshot("{\"offset\": 100}");
-        request.setSnapshotList(Collections.singletonList(message));
-
-        Boolean result = sourceService.reportSnapshot(request);
-        Assert.assertTrue(result);
-
-        sourceService.delete(id, Constant.SOURCE_DB_BINLOG, globalOperator);
+        sourceService.delete(id, SourceType.BINLOG.getType(), globalOperator);
     }
 
 }

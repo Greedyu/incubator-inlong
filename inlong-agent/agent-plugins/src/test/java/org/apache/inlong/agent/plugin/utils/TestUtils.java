@@ -17,6 +17,9 @@
 
 package org.apache.inlong.agent.plugin.utils;
 
+import org.apache.inlong.common.metric.MetricRegister;
+import org.powermock.api.mockito.PowerMockito;
+
 import java.io.FileWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -25,12 +28,14 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
+
 public class TestUtils {
 
     public static String getTestTriggerProfile() {
         return "{\n"
                 + "  \"job\": {\n"
-                + "    \"filejob\": {\n"
+                + "    \"fileJob\": {\n"
                 + "      \"additionStr\": \"m=15&file=test\",\n"
                 + "      \"trigger\": \"org.apache.inlong.agent.plugin.trigger.DirectoryTrigger\",\n"
                 + "      \"dir\": {\n"
@@ -69,12 +74,17 @@ public class TestUtils {
     }
 
     public static void createMultipleLineFiles(String fileName, String rootDir,
-        String record, int lineNum) throws Exception {
+            String record, int lineNum) throws Exception {
         final Path hugeFile = Paths.get(rootDir, fileName);
         List<String> beforeList = new ArrayList<>();
         for (int i = 0; i < lineNum; i++) {
             beforeList.add(String.format("%s_%d", record, i));
         }
         Files.write(hugeFile, beforeList, StandardOpenOption.CREATE);
+    }
+
+    public static void mockMetricRegister() throws Exception {
+        PowerMockito.mockStatic(MetricRegister.class);
+        PowerMockito.doNothing().when(MetricRegister.class, "register", any());
     }
 }

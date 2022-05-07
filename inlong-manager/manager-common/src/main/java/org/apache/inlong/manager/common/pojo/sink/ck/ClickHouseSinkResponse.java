@@ -22,11 +22,11 @@ import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
-import org.apache.inlong.manager.common.enums.Constant;
+import org.apache.inlong.manager.common.enums.SinkType;
 import org.apache.inlong.manager.common.pojo.sink.SinkResponse;
 
 /**
- * Response of the ClickHouse sink
+ * Response of the ClickHouse sink.
  */
 @Data
 @ToString(callSuper = true)
@@ -34,16 +34,8 @@ import org.apache.inlong.manager.common.pojo.sink.SinkResponse;
 @ApiModel(value = "Response of the ClickHouse sink")
 public class ClickHouseSinkResponse extends SinkResponse {
 
-    private String sinkType = Constant.SINK_CLICKHOUSE;
-
     @ApiModelProperty("ClickHouse JDBC URL")
     private String jdbcUrl;
-
-    @ApiModelProperty("Target database name")
-    private String databaseName;
-
-    @ApiModelProperty("Target table name")
-    private String tableName;
 
     @ApiModelProperty("Username for JDBC URL")
     private String username;
@@ -51,25 +43,36 @@ public class ClickHouseSinkResponse extends SinkResponse {
     @ApiModelProperty("User password")
     private String password;
 
-    @ApiModelProperty("Whether distributed table")
-    private Boolean distributedTable;
+    @ApiModelProperty("Target database name")
+    private String dbName;
 
-    @ApiModelProperty("Partition strategy,support: BALANCE, RANDOM, HASH")
-    private String partitionStrategy;
+    @ApiModelProperty("Target table name")
+    private String tableName;
 
-    @ApiModelProperty("Partition key")
-    private String partitionKey;
-
-    @ApiModelProperty("Key field names")
-    private String[] keyFieldNames;
-
-    @ApiModelProperty("Flush interval")
+    @ApiModelProperty("Flush interval, unit: second, default is 1s")
     private Integer flushInterval;
 
-    @ApiModelProperty("Flush record number")
-    private Integer flushRecordNumber;
+    @ApiModelProperty("Flush when record number reaches flushRecord")
+    private Integer flushRecord;
 
-    @ApiModelProperty("Write max retry times")
-    private Integer writeMaxRetryTimes;
+    @ApiModelProperty("Write max retry times, default is 3")
+    private Integer retryTimes;
+
+    @ApiModelProperty("Whether distributed table? 0: no, 1: yes")
+    private Integer isDistributed;
+
+    @ApiModelProperty("Partition strategy, support: BALANCE, RANDOM, HASH")
+    private String partitionStrategy;
+
+    @ApiModelProperty(value = "Partition files, separate with commas",
+            notes = "Necessary when partitionStrategy is HASH, must be one of the field list")
+    private String partitionFields;
+
+    @ApiModelProperty("Key field names, separate with commas")
+    private String keyFieldNames;
+
+    public ClickHouseSinkResponse() {
+        this.sinkType = SinkType.SINK_CLICKHOUSE;
+    }
 
 }

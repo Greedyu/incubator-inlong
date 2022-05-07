@@ -22,12 +22,9 @@ import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.inlong.manager.common.enums.EntityStatus;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.inlong.manager.common.enums.GlobalConstants;
 import org.apache.inlong.manager.common.pojo.commonserver.CommonFileServerInfo;
 import org.apache.inlong.manager.common.pojo.commonserver.CommonFileServerListVo;
 import org.apache.inlong.manager.common.pojo.commonserver.CommonFileServerPageRequest;
@@ -42,6 +39,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -82,7 +84,7 @@ public class CommonFileServerServiceImpl implements CommonFileServerService {
                 info.getUsername(),
                 info.getIp(),
                 info.getPort());
-        if (entities != null && entities.size() > 0) {
+        if (CollectionUtils.isNotEmpty(entities)) {
             for (CommonFileServerEntity entry : entities) {
                 // Have the same normal entry
                 if (entry.getIsDeleted() == 0) {
@@ -105,7 +107,7 @@ public class CommonFileServerServiceImpl implements CommonFileServerService {
         Date now = new Date();
         record.setCreateTime(now);
         record.setModifyTime(now);
-        record.setIsDeleted(EntityStatus.UN_DELETED.getCode());
+        record.setIsDeleted(GlobalConstants.UN_DELETED);
 
         int success = commonFileServerMapper.insert(record);
         Preconditions.checkTrue(success == 1, "insert into db failed");

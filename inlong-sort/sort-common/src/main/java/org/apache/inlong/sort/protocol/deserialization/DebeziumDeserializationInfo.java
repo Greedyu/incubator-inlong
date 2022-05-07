@@ -20,6 +20,7 @@ package org.apache.inlong.sort.protocol.deserialization;
 
 import java.util.Objects;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 public class DebeziumDeserializationInfo implements DeserializationInfo {
@@ -32,12 +33,24 @@ public class DebeziumDeserializationInfo implements DeserializationInfo {
     @JsonProperty("timestamp_format_standard")
     private final String timestampFormatStandard;
 
-    @JsonCreator
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonProperty("include_update_before")
+    private final boolean includeUpdateBefore;
+
     public DebeziumDeserializationInfo(
             @JsonProperty("ignore_parse_errors") boolean ignoreParseErrors,
             @JsonProperty("timestamp_format_standard") String timestampFormatStandard) {
+        this(ignoreParseErrors, timestampFormatStandard, true);
+    }
+
+    @JsonCreator
+    public DebeziumDeserializationInfo(
+            @JsonProperty("ignore_parse_errors") boolean ignoreParseErrors,
+            @JsonProperty("timestamp_format_standard") String timestampFormatStandard,
+            @JsonProperty("include_update_before") boolean includeUpdateBefore) {
         this.ignoreParseErrors = ignoreParseErrors;
         this.timestampFormatStandard = timestampFormatStandard;
+        this.includeUpdateBefore = includeUpdateBefore;
     }
 
     @JsonProperty("ignore_parse_errors")
@@ -50,6 +63,11 @@ public class DebeziumDeserializationInfo implements DeserializationInfo {
         return timestampFormatStandard;
     }
 
+    @JsonProperty("include_update_before")
+    public boolean isIncludeUpdateBefore() {
+        return includeUpdateBefore;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -60,19 +78,21 @@ public class DebeziumDeserializationInfo implements DeserializationInfo {
         }
         DebeziumDeserializationInfo that = (DebeziumDeserializationInfo) o;
         return ignoreParseErrors == that.ignoreParseErrors
-                && Objects.equals(timestampFormatStandard, that.timestampFormatStandard);
+                && Objects.equals(timestampFormatStandard, that.timestampFormatStandard)
+                && includeUpdateBefore == that.includeUpdateBefore;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(ignoreParseErrors, timestampFormatStandard);
+        return Objects.hash(ignoreParseErrors, timestampFormatStandard, includeUpdateBefore);
     }
 
     @Override
     public String toString() {
         return "DebeziumDeserializationInfo{"
-                + ", ignoreParseErrors=" + ignoreParseErrors
+                + "ignoreParseErrors=" + ignoreParseErrors
                 + ", timestampFormatStandard='" + timestampFormatStandard + '\''
+                + ", includeUpdateBefore=" + includeUpdateBefore
                 + '}';
     }
 }

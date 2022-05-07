@@ -17,10 +17,7 @@
 
 package org.apache.inlong.dataproxy.source;
 
-import java.util.Date;
-import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
+import com.google.common.base.Preconditions;
 
 import org.apache.commons.lang.math.NumberUtils;
 import org.apache.flume.Context;
@@ -31,11 +28,15 @@ import org.apache.inlong.dataproxy.config.holder.CommonPropertiesHolder;
 import org.apache.inlong.dataproxy.config.holder.IdTopicConfigHolder;
 import org.apache.inlong.dataproxy.consts.ConfigConstants;
 import org.apache.inlong.dataproxy.metrics.DataProxyMetricItemSet;
-import org.jboss.netty.channel.group.ChannelGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Preconditions;
+import java.util.Date;
+import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
+
+import io.netty.channel.group.ChannelGroup;
 
 /**
  * 
@@ -70,6 +71,8 @@ public class SourceContext {
     protected Context parentContext;
     protected long reloadInterval;
     protected Timer reloadTimer;
+    // isRejectService
+    protected boolean isRejectService = false;
 
     /**
      * Constructor
@@ -299,6 +302,24 @@ public class SourceContext {
      */
     public int getMaxThreads() {
         return maxThreads;
+    }
+
+    /**
+     * isRejectService
+     * 
+     * @return
+     */
+    public boolean isRejectService() {
+        return isRejectService;
+    }
+
+    /**
+     * setRejectService
+     * 
+     * @param isRejectService
+     */
+    public void setRejectService(boolean isRejectService) {
+        this.isRejectService = isRejectService;
     }
 
 }

@@ -17,9 +17,10 @@
 
 package org.apache.inlong.manager.client.api.util;
 
+import org.apache.commons.lang3.StringUtils;
+
 import java.util.Collection;
 import java.util.Map;
-import org.apache.commons.lang3.StringUtils;
 
 public class AssertUtil {
 
@@ -102,6 +103,12 @@ public class AssertUtil {
 
     public static void notEmpty(Object[] array, String message) {
         if (array == null || array.length == 0) {
+            throw new IllegalStateException(message);
+        }
+    }
+
+    public static void notEmpty(String obj, String message) {
+        if (StringUtils.isEmpty(obj)) {
             throw new IllegalStateException(message);
         }
     }

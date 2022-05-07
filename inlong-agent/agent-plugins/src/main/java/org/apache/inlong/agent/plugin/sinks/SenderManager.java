@@ -20,14 +20,15 @@ package org.apache.inlong.agent.plugin.sinks;
 import static org.apache.inlong.agent.constant.FetcherConstants.AGENT_MANAGER_VIP_HTTP_HOST;
 import static org.apache.inlong.agent.constant.FetcherConstants.AGENT_MANAGER_VIP_HTTP_PORT;
 
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.inlong.agent.common.AgentThreadFactory;
 import org.apache.inlong.agent.conf.AgentConfiguration;
 import org.apache.inlong.agent.conf.JobProfile;
 import org.apache.inlong.agent.constant.CommonConstants;
@@ -42,7 +43,6 @@ import org.apache.inlong.sdk.dataproxy.ProxyClientConfig;
 import org.apache.inlong.sdk.dataproxy.DefaultMessageSender;
 import org.apache.inlong.sdk.dataproxy.SendMessageCallback;
 import org.apache.inlong.sdk.dataproxy.SendResult;
-import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,14 +61,8 @@ public class SenderManager {
 
     // sharing worker threads between sender client
     // in case of thread abusing.
-    private static final NioClientSocketChannelFactory SHARED_FACTORY =
-            new NioClientSocketChannelFactory(
-                new ThreadPoolExecutor(0, Integer.MAX_VALUE,
-                    60L, TimeUnit.SECONDS,
-                    new SynchronousQueue<Runnable>(), new AgentThreadFactory("SenderManager")),
-                new ThreadPoolExecutor(0, Integer.MAX_VALUE,
-                60L, TimeUnit.SECONDS,
-                new SynchronousQueue<Runnable>(),  new AgentThreadFactory("SenderManager")));
+    private static final ThreadFactory SHARED_FACTORY = new DefaultThreadFactory("agent-client-io",
+            Thread.currentThread().isDaemon());
 
     private final String managerHost;
     private final int managerPort;
@@ -88,6 +82,10 @@ public class SenderManager {
     private final int maxSenderPerGroup;
     private final String sourcePath;
     private final PluginMetric metric;
+
+    private int ioThreadNum;
+    private boolean enableBusyWait;
+    private Semaphore semaphore;
 
     public SenderManager(JobProfile jobConf, String inlongGroupId, String sourcePath) {
         AgentConfiguration conf = AgentConfiguration.getAgentConf();
@@ -116,6 +114,13 @@ public class SenderManager {
             CommonConstants.PROXY_RETRY_SLEEP, CommonConstants.DEFAULT_PROXY_RETRY_SLEEP);
         isFile = jobConf.getBoolean(CommonConstants.PROXY_IS_FILE, CommonConstants.DEFAULT_IS_FILE);
         taskPositionManager = TaskPositionManager.getTaskPositionManager();
+        semaphore = new Semaphore(jobConf.getInt(CommonConstants.PROXY_MESSAGE_SEMAPHORE,
+            CommonConstants.DEFAULT_PROXY_MESSAGE_SEMAPHORE));
+        ioThreadNum = jobConf.getInt(CommonConstants.PROXY_CLIENT_IO_THREAD_NUM,
+                CommonConstants.DEFAULT_PROXY_CLIENT_IO_THREAD_NUM);
+        enableBusyWait = jobConf.getBoolean(CommonConstants.PROXY_CLIENT_ENABLE_BUSY_WAIT,
+                CommonConstants.DEFAULT_PROXY_CLIENT_ENABLE_BUSY_WAIT);
+
         this.sourcePath = sourcePath;
         this.inlongGroupId = inlongGroupId;
 
@@ -137,6 +142,15 @@ public class SenderManager {
         return senderList.get((SENDER_INDEX.getAndIncrement() & 0x7FFFFFFF) % senderList.size());
     }
 
+    public void acquireSemaphore(int messageNum) {
+        try {
+            semaphore.acquire(messageNum);
+        } catch (Exception e) {
+            LOGGER.error("acquire messageNum {} fail, current semaphore {}",
+                messageNum, semaphore.availablePermits());
+        }
+    }
+
     /**
      * sender
      *
@@ -150,6 +164,9 @@ public class SenderManager {
         proxyClientConfig.setTotalAsyncCallbackSize(totalAsyncBufSize);
         proxyClientConfig.setFile(isFile);
         proxyClientConfig.setAliveConnections(aliveConnectionNum);
+
+        proxyClientConfig.setIoThreadNum(ioThreadNum);
+        proxyClientConfig.setEnableBusyWait(enableBusyWait);
 
         DefaultMessageSender sender = new DefaultMessageSender(proxyClientConfig, SHARED_FACTORY);
         sender.setMsgtype(msgType);
@@ -199,13 +216,16 @@ public class SenderManager {
         public void onMessageAck(SendResult result) {
             // if send result is not ok, retry again.
             if (result == null || !result.equals(SendResult.OK)) {
-                LOGGER.warn("send groupId {}, streamId {}, jobId {}, dataTime {} fail with times {}",
-                    groupId, streamId, jobId, dataTime, retry);
-                sendBatch(jobId, groupId, streamId, bodyList, retry + 1, dataTime);
+                LOGGER.warn("send groupId {}, streamId {}, jobId {}, dataTime {} fail with times {}, "
+                        + "error {}", groupId, streamId, jobId, dataTime, retry, result);
+                sendBatchAsync(jobId, groupId, streamId, bodyList, retry + 1, dataTime);
                 return;
             }
+            semaphore.release(bodyList.size());
             metric.incSendSuccessNum(bodyList.size());
-            taskPositionManager.updateSinkPosition(jobId, sourcePath, bodyList.size());
+            if (sourcePath != null) {
+                taskPositionManager.updateSinkPosition(jobId, sourcePath, bodyList.size());
+            }
         }
 
         @Override
@@ -222,7 +242,7 @@ public class SenderManager {
      * @param bodyList - body list
      * @param retry - retry time
      */
-    public void sendBatch(String jobId, String groupId, String streamId,
+    public void sendBatchAsync(String jobId, String groupId, String streamId,
         List<byte[]> bodyList, int retry, long dataTime) {
         if (retry > maxSenderRetry) {
             LOGGER.warn("max retry reached, retry count is {}, sleep and send again", retry);
@@ -242,10 +262,43 @@ public class SenderManager {
             // retry time
             try {
                 TimeUnit.SECONDS.sleep(1);
-                sendBatch(jobId, groupId, streamId, bodyList, retry + 1, dataTime);
+                sendBatchAsync(jobId, groupId, streamId, bodyList, retry + 1, dataTime);
             } catch (Exception ignored) {
                 // ignore it.
             }
         }
     }
+
+    /**
+     * Send message to proxy by batch, use message cache.
+     *
+     * @param groupId - groupId
+     * @param streamId - streamId
+     * @param bodyList - body list
+     * @param retry - retry time
+     */
+    public void sendBatchSync(String groupId, String streamId,
+        List<byte[]> bodyList, int retry, long dataTime, Map<String, String> extraMap) {
+        if (retry > maxSenderRetry) {
+            LOGGER.warn("max retry reached, retry count is {}, sleep and send again", retry);
+            AgentUtils.silenceSleepInMs(retrySleepTime);
+        }
+        try {
+            selectSender(groupId).sendMessage(
+                bodyList, groupId, streamId, dataTime, "",
+                maxSenderTimeout, TimeUnit.SECONDS, extraMap
+            );
+            semaphore.release(bodyList.size());
+        } catch (Exception exception) {
+            LOGGER.error("Exception caught", exception);
+            // retry time
+            try {
+                TimeUnit.SECONDS.sleep(1);
+                sendBatchSync(groupId, streamId, bodyList, retry + 1, dataTime, extraMap);
+            } catch (Exception ignored) {
+                // ignore it.
+            }
+        }
+    }
+
 }

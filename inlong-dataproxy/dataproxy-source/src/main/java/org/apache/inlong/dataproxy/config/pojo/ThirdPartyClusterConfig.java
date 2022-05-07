@@ -42,6 +42,9 @@ public class ThirdPartyClusterConfig extends Context {
     private static final String ENABLE_BATCH = "enable_batch";
     private static final String BLOCK_IF_QUEUE_FULL = "block_if_queue_full";
     private static final String MAX_PENDING_MESSAGES = "max_pending_messages";
+    private static final String MAX_PENDING_MESSAGES_ACROSS_PARTITIONS =
+            "max_pending_messages_across_partitions";
+    private static final String COMPRESSION_TYPE = "compression_type";
     private static final String MAX_BATCHING_MESSAGES = "max_batching_messages";
     private static final String RETRY_INTERVAL_WHEN_SEND_ERROR_MILL = "retry_interval_when_send_error_ms";
     private static final String SINK_THREAD_NUM = "thread_num";
@@ -52,8 +55,8 @@ public class ThirdPartyClusterConfig extends Context {
     private static final String MAX_BATCHING_PUBLISH_DELAY_MILLIS =
             "max_batching_publish_delay_millis";
     private static final String EVENT_QUEUE_SIZE = "event_queue_size";
-
     private static final String BAD_EVENT_QUEUE_SIZE = "bad_event_queue_size";
+    private static final String MAX_RETRY_SEND_TIMES = "max_retry_send_times";
 
     private static final String SLA_METRIC_SINK = "sla_metric_sink";
 
@@ -84,7 +87,6 @@ public class ThirdPartyClusterConfig extends Context {
     private static final String STAT_INTERVAL_SEC = "stat_interval_sec";
     private static final String LOG_EVERY_N_EVENTS = "log_every_n_events";
     private static final String CLIENT_ID_CACHE = "client_id_cache";
-    private static final String RETRY_CNT = "retry_currentSuccSendedCnt";
 
     public static String PULSAR_DEFAULT_AUTH_TYPE = "token";
     private static final int DEFAULT_CLIENT_TIMEOUT_SECOND = 30;
@@ -93,10 +95,11 @@ public class ThirdPartyClusterConfig extends Context {
     private static final boolean DEFAULT_ENABLE_BATCH = true;
     private static final boolean DEFAULT_BLOCK_IF_QUEUE_FULL = true;
     private static final int DEFAULT_MAX_PENDING_MESSAGES = 10000;
+    private static final int DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS = 500000;
+    private static final String DEFAULT_COMPRESSION_TYPE = "NONE";
     private static final int DEFAULT_MAX_BATCHING_MESSAGES = 1000;
     private static final int DEFAULT_MAX_BATCHING_BYTES = 128 * 1024;
     private static final long DEFAULT_MAX_BATCHING_PUBLISH_DELAY_MILLIS = 1L;
-    private static final int DEFAULT_RETRY_CNT = -1;
     private static final int DEFAULT_LOG_EVERY_N_EVENTS = 100000;
     private static final int DEFAULT_STAT_INTERVAL_SEC = 60;
     private static final int DEFAULT_THREAD_NUM = 4;
@@ -107,6 +110,7 @@ public class ThirdPartyClusterConfig extends Context {
     private static final int DEFAULT_PULSAR_IO_THREADS = Math.max(1, SystemPropertyUtil
             .getInt("io.netty.eventLoopThreads", NettyRuntime.availableProcessors() * 2));
     private static final int DEFAULT_CONNECTIONS_PRE_BROKER = 1;
+    private static final int DEFAULT_MAX_RETRY_SEND_TIMES = 16;
     private static final boolean DEFAULT_SLA_METRIC_SINK = false;
 
     private static final String DEFAULT_LOG_TOPIC = "teg_manager";
@@ -203,6 +207,15 @@ public class ThirdPartyClusterConfig extends Context {
         return getInteger(MAX_PENDING_MESSAGES, DEFAULT_MAX_PENDING_MESSAGES);
     }
 
+    public int getMaxPendingMessagesAcrossPartitions() {
+        return getInteger(MAX_PENDING_MESSAGES_ACROSS_PARTITIONS,
+                DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS);
+    }
+
+    public String getCompressionType() {
+        return getString(COMPRESSION_TYPE, DEFAULT_COMPRESSION_TYPE);
+    }
+
     public int getMaxBatchingMessages() {
         return getInteger(MAX_BATCHING_MESSAGES, DEFAULT_MAX_BATCHING_MESSAGES);
     }
@@ -211,8 +224,8 @@ public class ThirdPartyClusterConfig extends Context {
         return getLong(RETRY_INTERVAL_WHEN_SEND_ERROR_MILL, DEFAULT_RETRY_INTERVAL_WHEN_SEND_ERROR_MILL);
     }
 
-    public int getRetyCnt() {
-        return getInteger(RETRY_CNT, DEFAULT_RETRY_CNT);
+    public int getMaxRetryCnt() {
+        return getInteger(MAX_RETRY_SEND_TIMES, DEFAULT_MAX_RETRY_SEND_TIMES);
     }
 
     public int getStatIntervalSec() {

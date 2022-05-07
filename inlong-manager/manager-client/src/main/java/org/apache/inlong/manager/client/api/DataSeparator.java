@@ -23,9 +23,9 @@ public enum DataSeparator {
     COLON(":", 58),
     SEMICOLON(";", 59),
     DASH("-", 45),
-    SOH("\001",1),
-    STX("\002",2),
-    ETX("\003",3);
+    SOH("\001", 1),
+    STX("\002", 2),
+    ETX("\003", 3);
 
     private String seperator;
 
@@ -39,12 +39,12 @@ public enum DataSeparator {
         return this.asciiCode;
     }
 
-    private DataSeparator(String seperator, int asciiCode) {
+    DataSeparator(String seperator, int asciiCode) {
         this.asciiCode = asciiCode;
         this.seperator = seperator;
     }
 
-    public static DataSeparator getByAscii(int asciiCode) {
+    public static DataSeparator forAscii(int asciiCode) {
         for (DataSeparator value : values()) {
             if (value.getAsciiCode() == asciiCode) {
                 return value;

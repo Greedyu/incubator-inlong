@@ -22,6 +22,7 @@ import io.swagger.annotations.ApiModelProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.inlong.manager.common.pojo.stream.StreamField;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -36,8 +37,14 @@ public class InlongStreamConf {
     @ApiModelProperty(value = "Inlong stream name", required = true)
     private String name;
 
+    @ApiModelProperty(value = "Topic name for stream. default: b_${name}")
+    private String topic;
+
     @ApiModelProperty("Inlong stream description")
     private String description;
+
+    @ApiModelProperty("Is Inlong stream strictly ordered")
+    private boolean strictlyOrdered = false;
 
     @ApiModelProperty("Stream source field list")
     private List<StreamField> streamFields;

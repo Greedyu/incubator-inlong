@@ -18,13 +18,12 @@
 
 file_path=$(cd "$(dirname "$0")"/../;pwd)
 # config
-sed -i "s/TUBE_LIST/$TUBMQ_MASTER_LIST/g" ${file_path}/conf/flume.conf
-cat <<EOF > ${file_path}/conf/common.properties
-manager_hosts=$MANAGER_OPENAPI_IP:$MANAGER_OPENAPI_PORT
-EOF
+common_conf_file=${file_path}/conf/common.properties
+sed -i "s/manager.hosts=.*$/manager.hosts=${MANAGER_OPENAPI_IP}:${MANAGER_OPENAPI_PORT}/g" "${common_conf_file}"
+sed -i "s/audit.proxys=.*$/audit.proxys=${AUDIT_PROXY_URL}/g" "${common_conf_file}"
+
 # start
-bash +x ${file_path}/bin/prepare_env.sh
 bash +x ${file_path}/bin/dataproxy-start.sh
 sleep 3
 # keep alive
-tail -F ${file_path}/logs/flume.log
+tail -F ${file_path}/logs/info.log

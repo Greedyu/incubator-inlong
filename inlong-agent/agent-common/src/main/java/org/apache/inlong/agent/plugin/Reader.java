@@ -52,4 +52,21 @@ public interface Reader extends Stage {
      * to solve while loop cause too much cpu usage
      */
     void setWaitMillisecs(long millis);
+
+    /**
+     * get snapshot of the reader
+     * @return
+     */
+    String getSnapshot();
+
+    /**
+     * finish read
+     */
+    void finishRead();
+
+    /**
+     * source is exist
+     * @return
+     */
+    boolean isSourceExist();
 }

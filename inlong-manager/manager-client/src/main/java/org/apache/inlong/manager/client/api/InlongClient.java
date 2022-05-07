@@ -17,7 +17,11 @@
 
 package org.apache.inlong.manager.client.api;
 
+import org.apache.inlong.manager.client.api.InlongGroupContext.InlongGroupState;
 import org.apache.inlong.manager.client.api.impl.InlongClientImpl;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * An interface to manipulate Inlong Cluster
@@ -35,7 +39,7 @@ import org.apache.inlong.manager.client.api.impl.InlongClientImpl;
  * InlongStreamBuilder builder = group.createStream(streamConf);
  * StreamSource source = ..
  * StreamSink sink = ..
- * List<StreamField> fields = ..
+ * List StreamField fields = ..
  * InlongStream stream = builder.source(source).sink(sink).fields(fields).init();
  * group.init();
  * </code>
@@ -43,13 +47,50 @@ import org.apache.inlong.manager.client.api.impl.InlongClientImpl;
  */
 public interface InlongClient {
 
+    /**
+     * Create inlong client.
+     *
+     * @param serviceUrl the service url
+     * @param configuration the configuration
+     * @return the inlong client
+     */
     static InlongClient create(String serviceUrl, ClientConfiguration configuration) {
         return new InlongClientImpl(serviceUrl, configuration);
     }
 
     /**
      * Create stream group by conf
+     *
+     * @param groupConf the group conf
+     * @return the inlong group
+     * @throws Exception the exception
      */
-    InlongGroup createGroup(InlongGroupConf groupConf) throws Exception;
+    InlongGroup forGroup(InlongGroupConf groupConf) throws Exception;
+
+    /**
+     * List group list.
+     *
+     * @return the list
+     * @throws Exception the exception
+     */
+    List<InlongGroup> listGroup(String expr, int status, int pageNum, int pageSize) throws Exception;
+
+    /**
+     * List group state
+     *
+     * @param groupNames
+     * @return
+     * @throws Exception
+     */
+    Map<String, InlongGroupState> listGroupState(List<String> groupNames) throws Exception;
+
+    /**
+     * Gets group.
+     *
+     * @param groupName the group name
+     * @return the group
+     * @throws Exception the exception
+     */
+    InlongGroup getGroup(String groupName) throws Exception;
 
 }

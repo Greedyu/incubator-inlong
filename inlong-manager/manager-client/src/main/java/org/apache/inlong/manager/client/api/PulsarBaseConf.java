@@ -21,23 +21,29 @@ import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import org.apache.inlong.manager.client.api.auth.Authentication;
+import org.apache.inlong.manager.common.enums.MQType;
 
 @Data
+@EqualsAndHashCode(callSuper = true)
 @AllArgsConstructor
 @NoArgsConstructor
 @ApiModel("Base configuration for Pulsar")
-public class PulsarBaseConf extends MqBaseConf {
+public class PulsarBaseConf extends MQBaseConf {
 
     @ApiModelProperty("Message queue type")
-    private MqType type = MqType.PULSAR;
+    private MQType type = MQType.PULSAR;
 
     @ApiModelProperty("Pulsar admin URL")
     private String pulsarAdminUrl;
 
     @ApiModelProperty("Pulsar service URL")
     private String pulsarServiceUrl;
+
+    @ApiModelProperty("Pulsar tenant")
+    private String tenant;
 
     @ApiModelProperty("Pulsar namespace")
     private String namespace;

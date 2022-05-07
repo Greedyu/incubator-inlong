@@ -41,10 +41,11 @@ public interface StreamSourceOperation {
      * Save the source info.
      *
      * @param request The request of the source.
+     * @param groupStatus The belongs group status.
      * @param operator The operator name.
      * @return Source id after saving.
      */
-    Integer saveOpt(SourceRequest request, String operator);
+    Integer saveOpt(SourceRequest request, Integer groupStatus, String operator);
 
     /**
      * Get source info by source id.
@@ -78,8 +79,33 @@ public interface StreamSourceOperation {
      * Update the source info.
      *
      * @param request Request of update.
+     * @param groupStatus The belongs group status.
      * @param operator Operator's name.
      */
-    void updateOpt(SourceRequest request, String operator);
+    void updateOpt(SourceRequest request, Integer groupStatus, String operator);
+
+    /**
+     * Stop the source collecting.
+     *
+     * @param request Request of update.
+     * @param operator Operator's name.
+     */
+    void stopOpt(SourceRequest request, String operator);
+
+    /**
+     * Stop the source collecting.
+     *
+     * @param request Request of update.
+     * @param operator Operator's name.
+     */
+    void restartOpt(SourceRequest request, String operator);
+
+    /**
+     * Stop the source collecting.
+     *
+     * @param request Request of update.
+     * @param operator Operator's name.
+     */
+    void deleteOpt(SourceRequest request, String operator);
 
 }

@@ -18,14 +18,16 @@
     under the License.
 -->
 
-<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.apache.inlong.manager.dao.mapper.StreamSinkEntityMapper">
     <resultMap id="BaseResultMap" type="org.apache.inlong.manager.dao.entity.StreamSinkEntity">
         <id column="id" jdbcType="INTEGER" property="id"/>
         <result column="inlong_group_id" jdbcType="VARCHAR" property="inlongGroupId"/>
         <result column="inlong_stream_id" jdbcType="VARCHAR" property="inlongStreamId"/>
         <result column="sink_type" jdbcType="VARCHAR" property="sinkType"/>
-        <result column="storage_period" jdbcType="INTEGER" property="storagePeriod"/>
+        <result column="sink_name" jdbcType="VARCHAR" property="sinkName"/>
+        <result column="description" jdbcType="INTEGER" property="description"/>
         <result column="enable_create_resource" jdbcType="TINYINT" property="enableCreateResource"/>
         <result column="ext_params" jdbcType="VARCHAR" property="extParams"/>
         <result column="operate_log" jdbcType="VARCHAR" property="operateLog"/>
@@ -40,7 +42,7 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        id, inlong_group_id, inlong_stream_id, sink_type, storage_period, enable_create_resource, ext_params,
+        id, inlong_group_id, inlong_stream_id, sink_type, sink_name, description, enable_create_resource, ext_params,
         operate_log, status, previous_status, is_deleted, creator, modifier, create_time, modify_time
     </sql>
 
@@ -71,7 +73,9 @@
         from stream_sink
         <where>
             is_deleted = 0
-            and sink_type = #{request.sinkType, jdbcType=VARCHAR}
+            <if test="request.sinkType != null and request.sinkType != ''">
+                and sink_type = #{request.sinkType, jdbcType=VARCHAR}
+            </if>
             and inlong_group_id = #{request.inlongGroupId, jdbcType=VARCHAR}
             <if test="request.inlongStreamId != null and request.inlongStreamId != ''">
                 and inlong_stream_id = #{request.inlongStreamId, jdbcType=VARCHAR}
@@ -80,6 +84,7 @@
                 and (
                 inlong_group_id like CONCAT('%', #{request.keyWord}, '%')
                 or inlong_stream_id like CONCAT('%', #{request.keyWord}, '%')
+                or sink_name like CONCAT('%', #{request.keyWord}, '%')
                 )
             </if>
             <if test="request.status != null and request.status != ''">
@@ -93,13 +98,14 @@
         select s.id,
                s.inlong_group_id,
                s.inlong_stream_id,
-               s.sink_type
+               s.sink_type,
+               s.sink_name
         from stream_sink s
         where s.is_deleted = 0
           and s.inlong_group_id = #{groupId, jdbcType=VARCHAR}
           and s.inlong_stream_id = #{streamId, jdbcType=VARCHAR}
     </select>
-    <select id="selectByIdentifier" resultType="org.apache.inlong.manager.dao.entity.StreamSinkEntity">
+    <select id="selectByRelatedId" resultType="org.apache.inlong.manager.dao.entity.StreamSinkEntity">
         select
         <include refid="Base_Column_List"/>
         from stream_sink
@@ -152,21 +158,20 @@
             </if>
         </where>
     </select>
-    <select id="selectAllConfig" resultType="org.apache.inlong.manager.common.pojo.sink.SinkForSortDTO">
+    <select id="selectAllConfig" resultType="org.apache.inlong.manager.common.pojo.sink.SinkInfo">
         select sink.id,
         sink.inlong_group_id,
         sink.inlong_stream_id,
         sink.sink_type,
-        sink.storage_period,
+        sink.description,
         sink.enable_create_resource,
         sink.ext_params,
         sink.status,
         sink.creator,
-
+        sink.sink_name,
         stream.mq_resource_obj,
         stream.data_source_type,
         stream.data_type,
-        stream.description,
         stream.data_separator as sourceSeparator,
         stream.data_escape_char
         from inlong_stream stream, stream_sink sink
@@ -176,8 +181,11 @@
             and stream.inlong_group_id = sink.inlong_group_id
             and stream.inlong_stream_id = sink.inlong_stream_id
             and stream.inlong_group_id = #{groupId, jdbcType=VARCHAR}
-            <if test="streamId != null and streamId != ''">
-                and stream.inlong_stream_id = #{streamId, jdbcType=VARCHAR}
+            <if test="idList != null and idList.size() > 0">
+                and stream.inlong_stream_id in
+                <foreach collection="idList" open="(" close=")" separator="," index="index" item="item">
+                    #{item}
+                </foreach>
             </if>
         </where>
     </select>
@@ -191,17 +199,17 @@
     <insert id="insert" useGeneratedKeys="true" keyProperty="id"
             parameterType="org.apache.inlong.manager.dao.entity.StreamSinkEntity">
         insert into stream_sink (id, inlong_group_id, inlong_stream_id,
-                                 sink_type, storage_period,
+                                 sink_type, sink_name, description,
                                  enable_create_resource, ext_params,
-                                 operate_log, status,
-                                 previous_status, is_deleted, creator,
-                                 modifier, create_time, modify_time)
+                                 operate_log, status, previous_status,
+                                 is_deleted, creator, modifier,
+                                 create_time, modify_time)
         values (#{id,jdbcType=INTEGER}, #{inlongGroupId,jdbcType=VARCHAR}, #{inlongStreamId,jdbcType=VARCHAR},
-                #{sinkType,jdbcType=VARCHAR}, #{storagePeriod,jdbcType=INTEGER},
+                #{sinkType,jdbcType=VARCHAR}, #{sinkName,jdbcType=VARCHAR}, #{description,jdbcType=VARCHAR},
                 #{enableCreateResource,jdbcType=TINYINT}, #{extParams,jdbcType=VARCHAR},
-                #{operateLog,jdbcType=VARCHAR}, #{status,jdbcType=INTEGER},
-                #{previousStatus,jdbcType=INTEGER}, #{isDeleted,jdbcType=INTEGER}, #{creator,jdbcType=VARCHAR},
-                #{modifier,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{modifyTime,jdbcType=TIMESTAMP})
+                #{operateLog,jdbcType=VARCHAR}, #{status,jdbcType=INTEGER}, #{previousStatus,jdbcType=INTEGER},
+                #{isDeleted,jdbcType=INTEGER}, #{creator,jdbcType=VARCHAR}, #{modifier,jdbcType=VARCHAR},
+                #{createTime,jdbcType=TIMESTAMP}, #{modifyTime,jdbcType=TIMESTAMP})
     </insert>
     <insert id="insertSelective" useGeneratedKeys="true" keyProperty="id"
             parameterType="org.apache.inlong.manager.dao.entity.StreamSinkEntity">
@@ -219,8 +227,11 @@
             <if test="sinkType != null">
                 sink_type,
             </if>
-            <if test="storagePeriod != null">
-                storage_period,
+            <if test="sinkName != null">
+                sink_name,
+            </if>
+            <if test="description != null">
+                description,
             </if>
             <if test="enableCreateResource != null">
                 enable_create_resource,
@@ -266,8 +277,11 @@
             <if test="sinkType != null">
                 #{sinkType,jdbcType=VARCHAR},
             </if>
-            <if test="storagePeriod != null">
-                #{storagePeriod,jdbcType=INTEGER},
+            <if test="sinkName != null">
+                #{sinkName,jdbcType=VARCHAR},
+            </if>
+            <if test="description != null">
+                #{description,jdbcType=VARCHAR},
             </if>
             <if test="enableCreateResource != null">
                 #{enableCreateResource,jdbcType=TINYINT},
@@ -302,7 +316,8 @@
         </trim>
     </insert>
 
-    <update id="updateByPrimaryKeySelective" parameterType="org.apache.inlong.manager.dao.entity.StreamSinkEntity">
+    <update id="updateByPrimaryKeySelective"
+            parameterType="org.apache.inlong.manager.dao.entity.StreamSinkEntity">
         update stream_sink
         <set>
             <if test="inlongGroupId != null">
@@ -311,11 +326,14 @@
             <if test="inlongStreamId != null">
                 inlong_stream_id = #{inlongStreamId,jdbcType=VARCHAR},
             </if>
-            <if test="storagePeriod != null">
-                storage_period = #{storagePeriod,jdbcType=INTEGER},
+            <if test="description != null">
+                description = #{description,jdbcType=VARCHAR},
             </if>
             <if test="sinkType != null">
                 sink_type = #{sinkType,jdbcType=VARCHAR},
+            </if>
+            <if test="sinkName != null">
+                sink_name = #{sinkName,jdbcType=VARCHAR},
             </if>
             <if test="enableCreateResource != null">
                 enable_create_resource = #{enableCreateResource,jdbcType=TINYINT},
@@ -355,7 +373,8 @@
         set inlong_group_id        = #{inlongGroupId,jdbcType=VARCHAR},
             inlong_stream_id       = #{inlongStreamId,jdbcType=VARCHAR},
             sink_type              = #{sinkType,jdbcType=VARCHAR},
-            storage_period         = #{storagePeriod,jdbcType=INTEGER},
+            sink_name              = #{sinkName,jdbcType=VARCHAR},
+            description            = #{description,jdbcType=VARCHAR},
             enable_create_resource = #{enableCreateResource,jdbcType=TINYINT},
             ext_params             = #{extParams,jdbcType=VARCHAR},
             operate_log            = #{operateLog,jdbcType=VARCHAR},

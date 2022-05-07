@@ -17,10 +17,15 @@
 
 package org.apache.inlong.manager.service.source;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections.MapUtils;
 import org.apache.inlong.common.pojo.agent.TaskSnapshotMessage;
 import org.apache.inlong.common.pojo.agent.TaskSnapshotRequest;
+import org.apache.inlong.manager.common.enums.SourceStatus;
 import org.apache.inlong.manager.dao.entity.StreamSourceEntity;
 import org.apache.inlong.manager.dao.mapper.StreamSourceEntityMapper;
 import org.slf4j.Logger;
@@ -32,6 +37,7 @@ import org.springframework.stereotype.Service;
 import javax.annotation.PostConstruct;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -45,8 +51,7 @@ import java.util.concurrent.TimeUnit;
 public class SourceSnapshotOperation implements AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SourceSnapshotOperation.class);
-
-    public final ExecutorService executorService = new ThreadPoolExecutor(
+    private final ExecutorService executorService = new ThreadPoolExecutor(
             1,
             1,
             10L,
@@ -54,15 +59,33 @@ public class SourceSnapshotOperation implements AutoCloseable {
             new ArrayBlockingQueue<>(100),
             new ThreadFactoryBuilder().setNameFormat("stream-source-snapshot-%s").build(),
             new CallerRunsPolicy());
-
     @Autowired
     private StreamSourceEntityMapper sourceMapper;
 
-    // The queue for transfer source snapshot
+    /**
+     * Cache the task ip and task status, the key is task ip
+     */
+    private Cache<String, ConcurrentHashMap<Integer, Integer>> agentTaskCache = CacheBuilder.newBuilder()
+            .maximumSize(1000).expireAfterWrite(30, TimeUnit.SECONDS).build(
+                    new CacheLoader<String, ConcurrentHashMap<Integer, Integer>>() {
+                        @Override
+                        public ConcurrentHashMap<Integer, Integer> load(String agentIp) {
+                            List<StreamSourceEntity> sourceEntities = sourceMapper.selectByAgentIp(agentIp);
+                            if (CollectionUtils.isEmpty(sourceEntities)) {
+                                return null;
+                            } else {
+                                ConcurrentHashMap<Integer, Integer> tmpMap = new ConcurrentHashMap<>();
+                                for (StreamSourceEntity entity : sourceEntities) {
+                                    tmpMap.put(entity.getId(), entity.getStatus());
+                                }
+                                return tmpMap;
+                            }
+                        }
+                    });
+    /**
+     * The queue for transfer source snapshot
+     */
     private LinkedBlockingQueue<TaskSnapshotRequest> snapshotQueue = null;
-
-    @Value("${stream.source.snapshot.batch.size:100}")
-    private int batchSize;
 
     @Value("${stream.source.snapshot.queue.size:10000}")
     private int queueSize = 10000;
@@ -85,13 +108,53 @@ public class SourceSnapshotOperation implements AutoCloseable {
     /**
      * Put snapshot into data queue
      */
-    public Boolean putData(TaskSnapshotRequest request) {
-        if (request == null || CollectionUtils.isEmpty(request.getSnapshotList())) {
-            LOGGER.info("request received, but snapshot list is empty, just return");
+    public Boolean snapshot(TaskSnapshotRequest request) {
+        if (request == null) {
             return true;
         }
+
+        String agentIp = request.getAgentIp();
+        List<TaskSnapshotMessage> snapshotList = request.getSnapshotList();
+        if (CollectionUtils.isEmpty(snapshotList)) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("receive snapshot from ip={}, but snapshot list is empty", agentIp);
+            }
+            return true;
+        }
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("receive snapshot from ip={}, msg size={}", agentIp, snapshotList.size());
+        }
+
         try {
+            // Offer the request of snapshot to the queue, and another thread will parse the data in the queue.
             snapshotQueue.offer(request);
+
+            // Modify the task status based on the tasks reported in the snapshot and the tasks in the cache.
+            ConcurrentHashMap<Integer, Integer> idStatusMap = agentTaskCache.getIfPresent(agentIp);
+            if (MapUtils.isEmpty(idStatusMap)) {
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("success report snapshot for ip={}, task status cache is null", agentIp);
+                }
+                return true;
+            }
+            boolean isInvalid = false;
+            for (TaskSnapshotMessage snapshot : snapshotList) {
+                Integer id = snapshot.getJobId();
+                if (id == null) {
+                    continue;
+                }
+
+                // Update the status from temporary to normal
+                Integer status = idStatusMap.get(id);
+                if (SourceStatus.TEMP_TO_NORMAL.contains(status)) {
+                    isInvalid = true;
+                    sourceMapper.updateStatus(id, SourceStatus.SOURCE_NORMAL.getCode(), false);
+                }
+            }
+
+            if (isInvalid) {
+                agentTaskCache.invalidate(agentIp);
+            }
             return true;
         } catch (Throwable t) {
             LOGGER.error("put source snapshot error", t);

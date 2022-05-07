@@ -21,8 +21,10 @@ import com.google.common.collect.Maps;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.apache.inlong.manager.common.exceptions.FormValidateException;
-import org.apache.inlong.manager.common.pojo.group.InlongGroupRequest;
+import org.apache.inlong.manager.common.pojo.group.InlongGroupInfo;
+import org.apache.inlong.manager.common.pojo.stream.InlongStreamInfo;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -34,15 +36,21 @@ public class GroupResourceProcessForm extends BaseProcessForm {
 
     public static final String FORM_NAME = "GroupResourceProcessForm";
 
-    private InlongGroupRequest groupInfo;
+    private InlongGroupInfo groupInfo;
 
+    @Deprecated
     private String streamId;
 
-    public InlongGroupRequest getGroupInfo() {
+    @Deprecated
+    private List<InlongStreamInfo> streamInfos;
+
+    private List<InlongStreamInfo> streamInfoList;
+
+    public InlongGroupInfo getGroupInfo() {
         return groupInfo;
     }
 
-    public void setGroupInfo(InlongGroupRequest groupInfo) {
+    public void setGroupInfo(InlongGroupInfo groupInfo) {
         this.groupInfo = groupInfo;
     }
 
@@ -60,10 +68,12 @@ public class GroupResourceProcessForm extends BaseProcessForm {
         return groupInfo.getInlongGroupId();
     }
 
+    @Deprecated
     public String getInlongStreamId() {
         return streamId;
     }
 
+    @Deprecated
     public void setInlongStreamId(String streamId) {
         this.streamId = streamId;
     }

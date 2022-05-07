@@ -19,26 +19,35 @@
 package org.apache.inlong.sort.singletenant.flink.deserialization;
 
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 import org.apache.inlong.sort.configuration.Configuration;
+import org.apache.inlong.sort.formats.common.BooleanFormatInfo;
 import org.apache.inlong.sort.formats.common.FormatInfo;
+import org.apache.inlong.sort.formats.common.LongFormatInfo;
 import org.apache.inlong.sort.formats.common.TimeFormatInfo;
 import org.apache.inlong.sort.formats.common.TimestampFormatInfo;
+import org.apache.inlong.sort.formats.json.MysqlBinLogData;
+import org.apache.inlong.sort.formats.json.canal.CanalJsonSerializationSchema;
 import org.apache.inlong.sort.protocol.BuiltInFieldInfo;
 import org.apache.inlong.sort.protocol.FieldInfo;
 import org.apache.inlong.sort.util.DefaultValueStrategy;
 
+import java.io.Serializable;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Date;
+import java.util.Map;
 
 import static org.apache.flink.shaded.guava18.com.google.common.base.Preconditions.checkNotNull;
 
-public class FieldMappingTransformer {
+public class FieldMappingTransformer implements Serializable {
+
+    private static final long serialVersionUID = 7621804808272983217L;
 
     /**
      * Skips time and attribute fields of source record.
      */
-    public static final int SOURCE_FIELD_SKIP_STEP = 0;
+    public static final int SOURCE_FIELD_SKIP_STEP = 1;
 
     private final FieldInfo[] outputFieldInfos;
 
@@ -55,11 +64,12 @@ public class FieldMappingTransformer {
     public Row transform(Row sourceRow, long dt) {
         final Row outputRow = new Row(outputFieldInfos.length);
         int sourceRowIndex = SOURCE_FIELD_SKIP_STEP;
+        Map<String, String> attributes = (Map<String, String>) sourceRow.getField(0);
         for (int i = 0; i < outputFieldInfos.length; i++) {
             Object fieldValue = null;
             if (outputFieldInfos[i] instanceof BuiltInFieldInfo) {
                 BuiltInFieldInfo builtInFieldInfo = (BuiltInFieldInfo) outputFieldInfos[i];
-                fieldValue = transformBuiltInField(builtInFieldInfo, dt);
+                fieldValue = transformBuiltInField(builtInFieldInfo, attributes, dt, sourceRow.getKind());
             } else if (sourceRowIndex < sourceRow.getArity()) {
                 fieldValue = sourceRow.getField(sourceRowIndex);
                 sourceRowIndex++;
@@ -70,14 +80,37 @@ public class FieldMappingTransformer {
             }
             outputRow.setField(i, fieldValue);
         }
+
+        outputRow.setKind(sourceRow.getKind());
+
         return outputRow;
     }
 
-    private static Object transformBuiltInField(BuiltInFieldInfo builtInFieldInfo, long dataTimestamp) {
-        if (builtInFieldInfo.getBuiltInField() == BuiltInFieldInfo.BuiltInField.DATA_TIME) {
-            return inferDataTimeValue(builtInFieldInfo.getFormatInfo(), dataTimestamp);
+    private static Object transformBuiltInField(
+            BuiltInFieldInfo builtInFieldInfo,
+            Map<String, String> attributes,
+            long dataTimestamp,
+            RowKind kind) {
+        switch (builtInFieldInfo.getBuiltInField()) {
+            case DATA_TIME:
+                return inferDataTimeValue(builtInFieldInfo.getFormatInfo(), dataTimestamp);
+            case MYSQL_METADATA_DATABASE:
+                return attributes.get(MysqlBinLogData.MYSQL_METADATA_DATABASE);
+            case MYSQL_METADATA_TABLE:
+                return attributes.get(MysqlBinLogData.MYSQL_METADATA_TABLE);
+            case MYSQL_METADATA_IS_DDL:
+                String isDdlStr = attributes.get(MysqlBinLogData.MYSQL_METADATA_IS_DDL);
+                return isDdlStr == null ? null : BooleanFormatInfo.INSTANCE.deserialize(isDdlStr);
+            case MYSQL_METADATA_EVENT_TIME:
+                String eventTimeStr = attributes.get(MysqlBinLogData.MYSQL_METADATA_EVENT_TIME);
+                return eventTimeStr == null ? null : LongFormatInfo.INSTANCE.deserialize(eventTimeStr);
+            case MYSQL_METADATA_EVENT_TYPE:
+                return CanalJsonSerializationSchema.rowKind2String(kind);
+            case MYSQL_METADATA_DATA:
+                return attributes.get(MysqlBinLogData.MYSQL_METADATA_DATA);
+            default:
+                return null;
         }
-        return null;
     }
 
     /**

@@ -18,8 +18,6 @@
 package org.apache.inlong.manager.client.api.inner;
 
 import com.google.common.collect.Maps;
-import java.util.List;
-import java.util.Map;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.commons.collections.MapUtils;
@@ -28,24 +26,27 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.inlong.manager.client.api.InlongStream;
 import org.apache.inlong.manager.client.api.util.AssertUtil;
 import org.apache.inlong.manager.common.pojo.group.InlongGroupApproveRequest;
-import org.apache.inlong.manager.common.pojo.group.InlongGroupRequest;
+import org.apache.inlong.manager.common.pojo.group.InlongGroupInfo;
 import org.apache.inlong.manager.common.pojo.stream.InlongStreamApproveRequest;
+
+import java.util.List;
+import java.util.Map;
 
 @Data
 @NoArgsConstructor
 public class InnerGroupContext {
 
-    private InlongGroupRequest groupRequest;
+    private InlongGroupInfo groupInfo;
 
-    private Map<String, InnerStreamContext> streamContextMap;
+    private Map<String, InnerStreamContext> streamContextMap = Maps.newHashMap();
 
-    private Map<String, InlongStream> streamMap;
+    private Map<String, InlongStream> streamMap = Maps.newHashMap();
 
     private Pair<InlongGroupApproveRequest, List<InlongStreamApproveRequest>> initMsg;
 
     public String getGroupId() {
-        AssertUtil.notNull(groupRequest, "InlongGroupRequest is not init");
-        return groupRequest.getInlongGroupId();
+        AssertUtil.notNull(groupInfo, "InlongGroupRequest is not init");
+        return groupInfo.getInlongGroupId();
     }
 
     public void setStreamContext(InnerStreamContext streamContext) {

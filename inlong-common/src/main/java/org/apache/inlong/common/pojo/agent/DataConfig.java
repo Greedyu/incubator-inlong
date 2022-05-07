@@ -19,19 +19,31 @@ package org.apache.inlong.common.pojo.agent;
 
 import lombok.Data;
 
+/**
+ * The task config for agent.
+ */
 @Data
 public class DataConfig {
 
+    private String ip;
+    private String uuid;
     private String inlongGroupId;
     private String inlongStreamId;
-    private String deliveryTime;
-    private String uuid;
-    private String ip;
     private String op;
     private Integer taskId;
     private Integer taskType;
+    private String taskName;
     private String snapshot;
+    private Integer syncSend;
     private String extParams;
+    /**
+     * The task version.
+     */
+    private Integer version;
+    /**
+     * The task delivery time, format is 'yyyy-MM-dd HH:mm:ss'.
+     */
+    private String deliveryTime;
 
     public boolean isValid() {
         return true;

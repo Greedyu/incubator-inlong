@@ -20,29 +20,50 @@ package org.apache.inlong.agent.pojo;
 import lombok.Data;
 
 @Data
-public class KafkaJob extends Job {
+public class KafkaJob {
 
-    private  String topic;
-    private  String keyDeserializer;
-    private  String valueDeserializer;
-    private  String bootstrapServers;
-    private  String groupId;
-    private  String recordSpeed;
-    private  String byteSpeedLimit;
-    private  String minInterval;
-    private  String offset;
+    private String topic;
+    private String bootstrapServers;
+    private Group group;
+    private Bootstrap bootstrap;
+    private Partition partition;
+    private RecordSpeed recordSpeed;
+    private ByteSpeed byteSpeed;
+    private String autoOffsetReset;
+
+    @Data
+    public static class Group {
+        private String id;
+    }
+
+    @Data
+    public static class Bootstrap {
+        private String servers;
+    }
+
+    @Data
+    public static class Partition {
+        private String offset;
+    }
+
+    @Data
+    public static class RecordSpeed {
+        private String limit;
+    }
+
+    @Data
+    public static class ByteSpeed {
+        private String limit;
+    }
 
     @Data
     public static class KafkaJobTaskConfig {
 
-        private  String topic;
-        private  String keyDeserializer;
-        private  String valueDeserializer;
-        private  String bootstrapServers;
-        private  String groupId;
-        private  String recordSpeed;
-        private  String byteSpeedLimit;
-        private  String minInterval;
-        private  String offset;
+        private String topic;
+        private String bootstrapServers;
+        private String groupId;
+        private String recordSpeedLimit;
+        private String byteSpeedLimit;
+        private  String autoOffsetReset;
     }
 }

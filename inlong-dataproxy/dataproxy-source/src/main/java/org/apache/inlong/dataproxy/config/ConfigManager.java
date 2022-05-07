@@ -18,6 +18,7 @@
 package org.apache.inlong.dataproxy.config;
 
 import com.google.gson.Gson;
+import org.apache.commons.lang.ObjectUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.config.RequestConfig;
@@ -74,23 +75,18 @@ public class ConfigManager {
 
     /**
      * get instance for manager
-     *
-     * @return
      */
     public static ConfigManager getInstance() {
-
         if (isInit && instance != null) {
             return instance;
         }
         synchronized (ConfigManager.class) {
             if (!isInit) {
                 instance = new ConfigManager();
-
                 for (ConfigHolder holder : CONFIG_HOLDER_LIST) {
-
                     holder.loadFromFileToHolder();
                 }
-                ReloadConfigWorker reloadProperties = new ReloadConfigWorker(instance);
+                ReloadConfigWorker reloadProperties = ReloadConfigWorker.create(instance);
                 reloadProperties.setDaemon(true);
                 reloadProperties.start();
             }
@@ -110,21 +106,27 @@ public class ConfigManager {
     /**
      * update old maps, reload local files if changed.
      *
-     * @param result        - map pending to be added
-     * @param holder        - property holder
+     * @param result - map pending to be added
+     * @param holder - property holder
      * @param addElseRemove - if add(true) else remove(false)
      * @return true if changed else false.
      */
-    private boolean updatePropertiesHolder(Map<String, String> result,
-                                           PropertiesConfigHolder holder, boolean addElseRemove) {
+    private boolean updatePropertiesHolder(Map<String, String> result, PropertiesConfigHolder holder,
+            boolean addElseRemove) {
         Map<String, String> tmpHolder = holder.forkHolder();
         boolean changed = false;
+
         for (Map.Entry<String, String> entry : result.entrySet()) {
-            String oldValue = addElseRemove
-                    ? tmpHolder.put(entry.getKey(), entry.getValue()) : tmpHolder.remove(entry.getKey());
-            // if addElseRemove is false, that means removing item, changed is true.
-            if (oldValue == null || !oldValue.equals(entry.getValue()) || !addElseRemove) {
-                changed = true;
+            if (addElseRemove) {
+                String oldValue = tmpHolder.put(entry.getKey(), entry.getValue());
+                if (!ObjectUtils.equals(oldValue, entry.getValue())) {
+                    changed = true;
+                }
+            } else {
+                String oldValue = tmpHolder.remove(entry.getKey());
+                if (oldValue != null) {
+                    changed = true;
+                }
             }
         }
 
@@ -210,15 +212,19 @@ public class ConfigManager {
     /**
      * load worker
      */
-    private static class ReloadConfigWorker extends Thread {
+    public static class ReloadConfigWorker extends Thread {
 
         private static final Logger LOG = LoggerFactory.getLogger(ReloadConfigWorker.class);
         private final ConfigManager configManager;
         private final CloseableHttpClient httpClient;
         private final Gson gson = new Gson();
         private boolean isRunning = true;
+        
+        public static ReloadConfigWorker create(ConfigManager managerInstance) {
+            return new ReloadConfigWorker(managerInstance);
+        }
 
-        public ReloadConfigWorker(ConfigManager managerInstance) {
+        private ReloadConfigWorker(ConfigManager managerInstance) {
             this.configManager = managerInstance;
             this.httpClient = constructHttpClient();
         }
@@ -271,8 +277,10 @@ public class ConfigManager {
             try {
                 if (StringUtils.isEmpty(proxyClusterName)) {
                     LOG.error("proxyClusterName is null");
+                    return false;
                 }
-                String url = "http://" + host + "/api/inlong/manager/openapi/dataproxy/getConfig_v2?clusterName=" + proxyClusterName;
+                String url = "http://" + host + "/api/inlong/manager/openapi/dataproxy/getConfig_v2?clusterName="
+                        + proxyClusterName;
                 LOG.info("start to request {} to get config info", url);
                 httpGet = new HttpGet(url);
                 httpGet.addHeader(HttpHeaders.CONNECTION, "close");
@@ -287,14 +295,19 @@ public class ConfigManager {
                 Map<String, String> groupIdToMValue = new HashMap<String, String>();
                 Map<String, String> mqConfig = new HashMap<>();// include url2token and other params
 
-                if (configJson.getErrCode() == 0) {
+                if (configJson.isSuccess() && configJson.getData() != null) { //success get config
+                    LOG.info("getConfig_v2 result: {}", returnStr);
                     /*
                      * get mqUrls <->token maps;
                      * if mq is pulsar, store format: third-party-cluster.index1=cluster1url1,cluster1url2=token
                      * if mq is tubemq, token is "", store format: third-party-cluster.index1=cluster1url1,cluster1url2=
                      */
                     int index = 1;
-                    List<ThirdPartyClusterInfo> clusterSet = configJson.getPulsarSet();
+                    List<ThirdPartyClusterInfo> clusterSet = configJson.getData().getMqSet();
+                    if (clusterSet == null || clusterSet.isEmpty()) {
+                        LOG.error("getConfig from manager: no available mq config");
+                        return false;
+                    }
                     for (ThirdPartyClusterInfo mqCluster : clusterSet) {
                         String key = ThirdPartyClusterConfigHolder.URL_STORE_PREFIX + index;
                         String value = mqCluster.getUrl() + AttributeConstants.KEY_VALUE_SEPARATOR
@@ -302,21 +315,28 @@ public class ConfigManager {
                         mqConfig.put(key, value);
                         ++index;
                     }
+
                     // mq other params
                     mqConfig.putAll(clusterSet.get(0).getParams());
 
-                    for (DataProxyConfig topic : configJson.getTopicList()) {
-                        groupIdToMValue.put(topic.getInlongGroupId(), topic.getM());
-                        groupIdToTopic.put(topic.getInlongGroupId(), topic.getTopic());
+                    for (DataProxyConfig topic : configJson.getData().getTopicList()) {
+                        if (!StringUtils.isEmpty(topic.getM())) {
+                            groupIdToMValue.put(topic.getInlongGroupId(), topic.getM());
+                        }
+                        if (!StringUtils.isEmpty(topic.getTopic())) {
+                            groupIdToTopic.put(topic.getInlongGroupId(), topic.getTopic());
+                        }
                     }
                     configManager.addMxProperties(groupIdToMValue);
                     configManager.addTopicProperties(groupIdToTopic);
                     configManager.updateThirdPartyClusterProperties(mqConfig);
 
                     // store mq common configs and url2token
-                    configManager.getThirdPartyClusterConfig().putAll(clusterSet.get(0).getParams());
+                    configManager.getThirdPartyClusterConfig().putAll(mqConfig);
                     configManager.getThirdPartyClusterHolder()
                             .setUrl2token(configManager.getThirdPartyClusterHolder().getUrl2token());
+                } else {
+                    LOG.error("getConfig from manager: {}", configJson.getErrMsg());
                 }
             } catch (Exception ex) {
                 LOG.error("exception caught", ex);
@@ -330,10 +350,12 @@ public class ConfigManager {
         }
 
         private void checkRemoteConfig() {
-
             try {
-                String managerHosts = configManager.getCommonProperties().get("manager_hosts");
-                String proxyClusterName = configManager.getCommonProperties().get("proxy_cluster_name");
+                String managerHosts = configManager.getCommonProperties().get("manager.hosts");
+                String proxyClusterName = configManager.getCommonProperties().get("proxy.cluster.name");
+                if (StringUtils.isEmpty(managerHosts) || StringUtils.isEmpty(proxyClusterName)) {
+                    return;
+                }
                 String[] hostList = StringUtils.split(managerHosts, ",");
                 for (String host : hostList) {
 

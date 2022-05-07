@@ -38,6 +38,7 @@ import static org.apache.inlong.sort.singletenant.flink.utils.CommonUtils.buildA
 import static org.apache.inlong.sort.singletenant.flink.utils.CommonUtils.convertDateToStringFormatInfo;
 import static org.apache.inlong.sort.singletenant.flink.utils.CommonUtils.convertFieldInfosToRowTypeInfo;
 import static org.apache.inlong.sort.singletenant.flink.utils.CommonUtils.extractFormatInfos;
+import static org.apache.inlong.sort.singletenant.flink.utils.CommonUtils.extractNonBuiltInFieldInfos;
 
 public class DeserializationSchemaFactory {
 
@@ -45,16 +46,19 @@ public class DeserializationSchemaFactory {
             FieldInfo[] fieldInfos,
             DeserializationInfo deserializationInfo) throws IOException, ClassNotFoundException {
         if (deserializationInfo instanceof JsonDeserializationInfo) {
-            return buildJsonDeserializationSchema(fieldInfos);
+            return buildJsonDeserializationSchema(extractNonBuiltInFieldInfos(fieldInfos, false));
         } else if (deserializationInfo instanceof AvroDeserializationInfo) {
-            return buildAvroDeserializationSchema(fieldInfos);
+            return buildAvroDeserializationSchema(extractNonBuiltInFieldInfos(fieldInfos, false));
         } else if (deserializationInfo instanceof CanalDeserializationInfo) {
-            return CanalDeserializationSchemaBuilder.build(fieldInfos, (CanalDeserializationInfo) deserializationInfo);
+            return CanalDeserializationSchemaBuilder.build(
+                    fieldInfos,
+                    (CanalDeserializationInfo) deserializationInfo);
         } else if (deserializationInfo instanceof DebeziumDeserializationInfo) {
-            return DebeziumDeserializationSchemaBuilder.build(fieldInfos,
+            return DebeziumDeserializationSchemaBuilder.build(
+                    fieldInfos,
                     (DebeziumDeserializationInfo) deserializationInfo);
         } else {
-            return buildStringDeserializationSchema(fieldInfos);
+            return buildStringDeserializationSchema(extractNonBuiltInFieldInfos(fieldInfos, false));
         }
     }
 

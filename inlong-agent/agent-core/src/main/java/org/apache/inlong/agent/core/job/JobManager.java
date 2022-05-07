@@ -40,8 +40,10 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.inlong.agent.constant.AgentConstants.DEFAULT_JOB_DB_CACHE_CHECK_INTERVAL;
 import static org.apache.inlong.agent.constant.AgentConstants.DEFAULT_JOB_DB_CACHE_TIME;
+import static org.apache.inlong.agent.constant.AgentConstants.DEFAULT_JOB_NUMBER_LIMIT;
 import static org.apache.inlong.agent.constant.AgentConstants.JOB_DB_CACHE_CHECK_INTERVAL;
 import static org.apache.inlong.agent.constant.AgentConstants.JOB_DB_CACHE_TIME;
+import static org.apache.inlong.agent.constant.AgentConstants.JOB_NUMBER_LIMIT;
 import static org.apache.inlong.agent.constant.JobConstants.JOB_ID;
 import static org.apache.inlong.agent.constant.JobConstants.JOB_ID_PREFIX;
 import static org.apache.inlong.agent.constant.JobConstants.SQL_JOB_ID;
@@ -69,6 +71,7 @@ public class JobManager extends AbstractDaemon {
     private final JobProfileDb jobProfileDb;
     private final JobMetrics jobMetrics;
     private final AtomicLong index = new AtomicLong(0);
+    private final long jobMaxSize;
 
     /**
      * init job manager
@@ -92,6 +95,7 @@ public class JobManager extends AbstractDaemon {
                         AgentConstants.JOB_MONITOR_INTERVAL, AgentConstants.DEFAULT_JOB_MONITOR_INTERVAL);
         this.jobDbCacheTime = conf.getLong(JOB_DB_CACHE_TIME, DEFAULT_JOB_DB_CACHE_TIME);
         this.jobDbCacheCheckInterval = conf.getLong(JOB_DB_CACHE_CHECK_INTERVAL, DEFAULT_JOB_DB_CACHE_CHECK_INTERVAL);
+        this.jobMaxSize = conf.getLong(JOB_NUMBER_LIMIT, DEFAULT_JOB_NUMBER_LIMIT);
 
         if (ConfigUtil.isPrometheusEnabled()) {
             this.jobMetrics = new JobPrometheusMetrics();
@@ -128,13 +132,24 @@ public class JobManager extends AbstractDaemon {
      * @param profile - job profile.
      */
     public boolean submitFileJobProfile(JobProfile profile) {
-        if (profile == null || !profile.allRequiredKeyExist()) {
-            LOGGER.error("profile is null or not all required key exists {}", profile == null ? null
-                    : profile.toJsonStr());
+        return submitJobProfile(profile, false);
+    }
+
+    /**
+     * add file job profile
+     *
+     * @param profile - job profile.
+     */
+    public boolean submitJobProfile(JobProfile profile, boolean singleJob) {
+        if (!isJobValid(profile)) {
             return false;
         }
         String jobId = profile.get(JOB_ID);
-        profile.set(JOB_INSTANCE_ID, AgentUtils.getUniqId(JOB_ID_PREFIX, jobId, index.incrementAndGet()));
+        if (singleJob) {
+            profile.set(JOB_INSTANCE_ID, jobId);
+        } else {
+            profile.set(JOB_INSTANCE_ID, AgentUtils.getUniqId(JOB_ID_PREFIX, jobId, index.incrementAndGet()));
+        }
         LOGGER.info("submit job profile {}", profile.toJsonStr());
         getJobConfDb().storeJobFirstTime(profile);
         addJob(new Job(profile));
@@ -147,9 +162,7 @@ public class JobManager extends AbstractDaemon {
      * @param profile - job profile.
      */
     public boolean submitSqlJobProfile(JobProfile profile) {
-        if (profile == null || !profile.allRequiredKeyExist()) {
-            LOGGER.error("profile is null or not all required key exists {}", profile == null ? null
-                    : profile.toJsonStr());
+        if (isJobValid(profile)) {
             return false;
         }
         profile.set(JOB_INSTANCE_ID, SQL_JOB_ID);
@@ -159,25 +172,45 @@ public class JobManager extends AbstractDaemon {
         return true;
     }
 
+    private boolean isJobValid(JobProfile profile) {
+        if (profile == null || !profile.allRequiredKeyExist()) {
+            LOGGER.error("profile is null or not all required key exists {}", profile == null ? null
+                    : profile.toJsonStr());
+            return false;
+        }
+        if (isJobOverLimit()) {
+            LOGGER.error("agent cannot add more job, max job size is {}", jobMaxSize);
+            return false;
+        }
+        return true;
+    }
+
+    public boolean isJobOverLimit() {
+        return jobs.size() >= jobMaxSize;
+    }
+
     /**
      * delete job profile and stop job thread
      *
      * @param jobInstancId
      */
-    public void deleteJob(String jobInstancId) {
+    public boolean deleteJob(String jobInstancId) {
+        LOGGER.info("start to delete job, job id set {}", jobs.keySet());
         JobWrapper jobWrapper = jobs.remove(jobInstancId);
         if (jobWrapper != null) {
             LOGGER.info("delete job instance with job id {}", jobInstancId);
             jobWrapper.cleanup();
             getJobConfDb().deleteJob(jobInstancId);
+            return true;
         }
+        return false;
     }
 
     /**
      * start all accepted jobs.
      */
     private void startJobs() {
-        List<JobProfile> profileList = getJobConfDb().getAcceptedJobs();
+        List<JobProfile> profileList = getJobConfDb().getRestartJobs();
         for (JobProfile profile : profileList) {
             LOGGER.info("init starting job from db {}", profile.toJsonStr());
             addJob(new Job(profile));

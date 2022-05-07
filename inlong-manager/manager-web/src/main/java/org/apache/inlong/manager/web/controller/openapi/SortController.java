@@ -19,8 +19,8 @@ package org.apache.inlong.manager.web.controller.openapi;
 
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
-import org.apache.inlong.manager.common.pojo.sort.SortClusterConfigResponse;
-import org.apache.inlong.manager.common.pojo.sort.SortSourceConfigResponse;
+import org.apache.inlong.common.pojo.sortstandalone.SortClusterResponse;
+import org.apache.inlong.common.pojo.sdk.SortSourceConfigResponse;
 import org.apache.inlong.manager.service.core.SortService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -38,19 +38,19 @@ public class SortController {
 
     @GetMapping("/getClusterConfig")
     @ApiOperation(value = "get sort cluster config")
-    public SortClusterConfigResponse getSortClusterConfig(
+    public SortClusterResponse getSortClusterConfig(
             @RequestParam String clusterName,
             @RequestParam String md5) {
         return sortService.getClusterConfig(clusterName, md5);
     }
 
     @GetMapping("/getSortSource")
-    @ApiOperation(value = "get sort sdk cnfig")
+    @ApiOperation(value = "get sort sdk config")
     public SortSourceConfigResponse getSortSourceConfig(
             @RequestParam String clusterName,
             @RequestParam String sortTaskId,
             @RequestParam String md5) {
-        return null;
+        return sortService.getSourceConfig(clusterName, sortTaskId, md5);
     }
 
 }

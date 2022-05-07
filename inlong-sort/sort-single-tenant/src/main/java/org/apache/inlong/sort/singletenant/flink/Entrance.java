@@ -17,21 +17,15 @@
 
 package org.apache.inlong.sort.singletenant.flink;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
-import static org.apache.inlong.sort.singletenant.flink.kafka.KafkaSinkBuilder.buildKafkaSink;
-import static org.apache.inlong.sort.singletenant.flink.pulsar.PulsarSourceBuilder.buildPulsarSource;
-
-import java.io.File;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Map;
-
+import com.google.common.base.Preconditions;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
 import org.apache.iceberg.flink.TableLoader;
 import org.apache.iceberg.flink.sink.FlinkSink;
@@ -39,9 +33,11 @@ import org.apache.inlong.sort.configuration.Configuration;
 import org.apache.inlong.sort.configuration.Constants;
 import org.apache.inlong.sort.flink.hive.HiveCommitter;
 import org.apache.inlong.sort.flink.hive.HiveWriter;
-import org.apache.inlong.sort.protocol.BuiltInFieldInfo;
 import org.apache.inlong.sort.protocol.DataFlowInfo;
 import org.apache.inlong.sort.protocol.FieldInfo;
+import org.apache.inlong.sort.protocol.GroupInfo;
+import org.apache.inlong.sort.protocol.deserialization.CanalDeserializationInfo;
+import org.apache.inlong.sort.protocol.deserialization.DebeziumDeserializationInfo;
 import org.apache.inlong.sort.protocol.sink.ClickHouseSinkInfo;
 import org.apache.inlong.sort.protocol.sink.HiveSinkInfo;
 import org.apache.inlong.sort.protocol.sink.IcebergSinkInfo;
@@ -49,53 +45,81 @@ import org.apache.inlong.sort.protocol.sink.KafkaSinkInfo;
 import org.apache.inlong.sort.protocol.sink.SinkInfo;
 import org.apache.inlong.sort.protocol.source.PulsarSourceInfo;
 import org.apache.inlong.sort.protocol.source.SourceInfo;
+import org.apache.inlong.sort.protocol.source.TDMQPulsarSourceInfo;
+import org.apache.inlong.sort.protocol.transformation.TransformationInfo;
 import org.apache.inlong.sort.singletenant.flink.clickhouse.ClickhouseRowSinkFunction;
 import org.apache.inlong.sort.singletenant.flink.deserialization.DeserializationFunction;
 import org.apache.inlong.sort.singletenant.flink.deserialization.DeserializationSchemaFactory;
 import org.apache.inlong.sort.singletenant.flink.deserialization.FieldMappingTransformer;
+import org.apache.inlong.sort.singletenant.flink.parser.impl.FlinkSqlParser;
+import org.apache.inlong.sort.singletenant.flink.parser.result.FlinkSqlParseResult;
 import org.apache.inlong.sort.singletenant.flink.serialization.SerializationSchemaFactory;
+import org.apache.inlong.sort.singletenant.flink.transformation.Transformer;
 import org.apache.inlong.sort.singletenant.flink.utils.CommonUtils;
 import org.apache.inlong.sort.util.ParameterTool;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.Map;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
+import static org.apache.inlong.sort.flink.kafka.KafkaSinkBuilder.buildKafkaSink;
+import static org.apache.inlong.sort.singletenant.flink.pulsar.PulsarSourceBuilder.buildPulsarSource;
+import static org.apache.inlong.sort.singletenant.flink.pulsar.PulsarSourceBuilder.buildTDMQPulsarSource;
 
 public class Entrance {
 
     public static void main(String[] args) throws Exception {
         final ParameterTool parameterTool = ParameterTool.fromArgs(args);
         final Configuration config = parameterTool.getConfiguration();
-        final String clusterId = checkNotNull(config.getString(Constants.CLUSTER_ID));
-        final DataFlowInfo dataFlowInfo = getDataflowInfoFromFile(config.getString(Constants.DATAFLOW_INFO_FILE));
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
         // Checkpoint related
         env.enableCheckpointing(config.getInteger(Constants.CHECKPOINT_INTERVAL_MS));
         env.getCheckpointConfig().setMinPauseBetweenCheckpoints(
                 config.getInteger(Constants.MIN_PAUSE_BETWEEN_CHECKPOINTS_MS));
         env.getCheckpointConfig().setCheckpointTimeout(config.getInteger(Constants.CHECKPOINT_TIMEOUT_MS));
         env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
-
-        DataStream<SerializedRecord> sourceStream = buildSourceStream(
-                env,
-                config,
-                dataFlowInfo.getSourceInfo(),
-                dataFlowInfo.getProperties()
-        );
-
-        DataStream<Row> deserializedStream =
-                buildDeserializationStream(sourceStream, dataFlowInfo.getSourceInfo(), config);
-
-        buildSinkStream(
-                deserializedStream,
-                config,
-                dataFlowInfo.getSinkInfo(),
-                dataFlowInfo.getProperties(),
-                dataFlowInfo.getId());
-
-        env.execute(clusterId);
+        boolean lightweight = config.getBoolean(Constants.LIGHTWEIGHT);
+        if (lightweight) {
+            EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner()
+                    .inStreamingMode().build();
+            StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env, settings);
+            final GroupInfo groupInfo = getGroupInfoFromFile(config.getString(Constants.GROUP_INFO_FILE));
+            final FlinkSqlParser parser = FlinkSqlParser.getInstance(tableEnv, groupInfo);
+            final FlinkSqlParseResult parseResult = Preconditions.checkNotNull(parser.parse(),
+                    "parse result is null");
+            parseResult.execute();
+        } else {
+            final String clusterId = checkNotNull(config.getString(Constants.CLUSTER_ID));
+            final DataFlowInfo dataFlowInfo = getDataflowInfoFromFile(config.getString(Constants.DATAFLOW_INFO_FILE));
+            DataStream<SerializedRecord> sourceStream = buildSourceStream(
+                    env,
+                    config,
+                    dataFlowInfo.getSourceInfo(),
+                    dataFlowInfo.getProperties()
+            );
+            DataStream<Row> deserializedStream =
+                    buildDeserializationStream(sourceStream, dataFlowInfo, config);
+            DataStream<Row> transformationStream =
+                    buildTransformationStream(deserializedStream, dataFlowInfo, config);
+            buildSinkStream(
+                    transformationStream,
+                    config,
+                    dataFlowInfo.getSinkInfo(),
+                    dataFlowInfo.getProperties(),
+                    dataFlowInfo.getId());
+            env.execute(clusterId);
+        }
     }
 
     private static DataFlowInfo getDataflowInfoFromFile(String fileName) throws IOException {
         ObjectMapper objectMapper = new ObjectMapper();
         return objectMapper.readValue(new File(fileName), DataFlowInfo.class);
+    }
+
+    private static GroupInfo getGroupInfoFromFile(String fileName) throws IOException {
+        ObjectMapper objectMapper = new ObjectMapper();
+        return objectMapper.readValue(new File(fileName), GroupInfo.class);
     }
 
     private static DataStream<SerializedRecord> buildSourceStream(
@@ -105,40 +129,100 @@ public class Entrance {
             Map<String, Object> properties) {
         final String sourceType = checkNotNull(config.getString(Constants.SOURCE_TYPE));
         final int sourceParallelism = config.getInteger(Constants.SOURCE_PARALLELISM);
+        final boolean orderlyOutput = config.getBoolean(Constants.JOB_ORDERLY_OUTPUT);
+        DataStream<SerializedRecord> sourceStream;
 
         if (sourceType.equals(Constants.SOURCE_TYPE_PULSAR)) {
             checkState(sourceInfo instanceof PulsarSourceInfo);
             PulsarSourceInfo pulsarSourceInfo = (PulsarSourceInfo) sourceInfo;
 
-            return env.addSource(buildPulsarSource(pulsarSourceInfo, config, properties))
-                    .uid(Constants.SOURCE_UID)
-                    .name("Pulsar source")
-                    .setParallelism(sourceParallelism)
-                    .rebalance();
+            sourceStream =
+                    env.addSource(buildPulsarSource(pulsarSourceInfo, config, properties))
+                            .uid(Constants.SOURCE_UID)
+                            .name("Pulsar source")
+                            .setParallelism(sourceParallelism);
+
+        } else if (sourceType.equals(Constants.SOURCE_TYPE_TDMQ_PULSAR)) {
+            checkState(sourceInfo instanceof TDMQPulsarSourceInfo);
+            TDMQPulsarSourceInfo tdmqPulsarSourceInfo = (TDMQPulsarSourceInfo) sourceInfo;
+
+            sourceStream =
+                    env.addSource(buildTDMQPulsarSource(tdmqPulsarSourceInfo, config, properties))
+                            .uid(Constants.SOURCE_UID)
+                            .name("TDMQ Pulsar source")
+                            .setParallelism(sourceParallelism);
         } else {
             throw new IllegalArgumentException("Unsupported source type " + sourceType);
+        }
+
+        if (orderlyOutput) {
+            return sourceStream.forward();
+        } else {
+            return sourceStream.rebalance();
         }
     }
 
     private static DataStream<Row> buildDeserializationStream(
             DataStream<SerializedRecord> sourceStream,
-            SourceInfo sourceInfo,
+            DataFlowInfo dataFlowInfo,
             Configuration config
     ) throws IOException, ClassNotFoundException {
+        final boolean orderlyOutput = config.getBoolean(Constants.JOB_ORDERLY_OUTPUT);
+        SourceInfo sourceInfo = dataFlowInfo.getSourceInfo();
         FieldInfo[] sourceFields = sourceInfo.getFields();
         DeserializationSchema<Row> schema = DeserializationSchemaFactory.build(
-                extractNonBuiltInFieldInfo(sourceFields), sourceInfo.getDeserializationInfo());
+                sourceFields, sourceInfo.getDeserializationInfo());
         FieldMappingTransformer fieldMappingTransformer = new FieldMappingTransformer(config, sourceFields);
-        DeserializationFunction function = new DeserializationFunction(schema, fieldMappingTransformer);
-        return sourceStream.process(function)
+
+        Pair<String, String> inLongGroupIdAndStreamId = CommonUtils.getInLongGroupIdAndStreamId(dataFlowInfo);
+
+        // Currently, canal and debezium deserialization schema will put a map at the first position
+        // of the deserialized row. So the `appendAttributes` flag should be set false.
+        DeserializationFunction function = new DeserializationFunction(
+                schema,
+                fieldMappingTransformer,
+                !(sourceInfo.getDeserializationInfo() instanceof DebeziumDeserializationInfo)
+                        && !(sourceInfo.getDeserializationInfo() instanceof CanalDeserializationInfo),
+                config,
+                inLongGroupIdAndStreamId.getLeft(),
+                inLongGroupIdAndStreamId.getRight());
+
+        DataStream<Row> deserializedStream = sourceStream.process(function)
                 .uid(Constants.DESERIALIZATION_SCHEMA_UID)
                 .name("Deserialization")
                 .setParallelism(config.getInteger(Constants.DESERIALIZATION_PARALLELISM));
+
+        if (orderlyOutput) {
+            return deserializedStream.forward();
+        }
+
+        return deserializedStream;
     }
 
-    private static FieldInfo[] extractNonBuiltInFieldInfo(FieldInfo[] fieldInfos) {
-        return Arrays.stream(fieldInfos).filter(fieldInfo -> !(fieldInfo instanceof BuiltInFieldInfo)).toArray(
-                FieldInfo[]::new);
+    private static DataStream<Row> buildTransformationStream(
+            DataStream<Row> deserializationStream,
+            DataFlowInfo dataFlowInfo,
+            Configuration config) {
+        final boolean orderlyOutput = config.getBoolean(Constants.JOB_ORDERLY_OUTPUT);
+        TransformationInfo transformationInfo = dataFlowInfo.getTransformationInfo();
+        if (transformationInfo == null) {
+            return deserializationStream;
+        }
+
+        DataStream<Row> transformationStream = deserializationStream
+                .process(new Transformer(
+                        transformationInfo,
+                        dataFlowInfo.getSourceInfo().getFields(),
+                        dataFlowInfo.getSinkInfo().getFields()))
+                .uid(Constants.TRANSFORMATION_UID)
+                .name("Transformation")
+                .setParallelism(config.getInteger(Constants.TRANSFORMATION_PARALLELISM));
+
+        if (orderlyOutput) {
+            return transformationStream.forward();
+        }
+
+        return transformationStream;
     }
 
     private static void buildSinkStream(
@@ -201,7 +285,6 @@ public class Entrance {
                         ((KafkaSinkInfo) sinkInfo).getSerializationInfo());
                 sourceStream
                         .addSink(buildKafkaSink((KafkaSinkInfo) sinkInfo, properties, schema, config))
-                        .uid(Constants.SINK_UID)
                         .name("Kafka Sink")
                         .setParallelism(sinkParallelism);
                 break;

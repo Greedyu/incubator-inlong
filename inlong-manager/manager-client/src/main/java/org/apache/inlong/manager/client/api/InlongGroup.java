@@ -29,34 +29,89 @@ public interface InlongGroup {
     InlongStreamBuilder createStream(InlongStreamConf streamConf) throws Exception;
 
     /**
+     * Create snapshot for Inlong group
+     *
+     * @return
+     * @throws Exception
+     */
+    InlongGroupContext context() throws Exception;
+
+    /**
      * Init inlong group.
      * This operation will init all physical resources needed to start a stream group
      * Must be operated after all inlong streams were created;
      *
      * @return inlong group info
      */
-    InlongGroupInfo init() throws Exception;
+    InlongGroupContext init() throws Exception;
+
+    /**
+     * Update Inlong group on updated conf
+     *
+     * @return
+     * @throws Exception
+     */
+    void update(InlongGroupConf conf) throws Exception;
+
+    /**
+     * ReInit inlong group after update configuration for group.
+     * Must be invoked when group is rejected,failed or started
+     *
+     * @return inlong group info
+     */
+    InlongGroupContext reInitOnUpdate(InlongGroupConf conf) throws Exception;
+
+    /**
+     * Init inlong group on updated conf.
+     * Must be invoked when group is rejected,failed or started
+     * This method is deprecated, recommend to use reInitOnUpdate
+     *
+     * @return inlong group info
+     */
+    @Deprecated
+    InlongGroupContext initOnUpdate(InlongGroupConf conf) throws Exception;
 
     /**
      * Suspend the stream group and return group info.
      *
      * @return group info
      */
-    InlongGroupInfo suspend() throws Exception;
+    InlongGroupContext suspend() throws Exception;
+
+    /**
+     * Suspend the stream group and return group info.
+     *
+     * @return group info
+     */
+    InlongGroupContext suspend(boolean async) throws Exception;
 
     /**
      * Restart the stream group and return group info.
      *
      * @return group info
      */
-    InlongGroupInfo restart() throws Exception;
+    InlongGroupContext restart() throws Exception;
+
+    /**
+     * Restart the stream group and return group info.
+     *
+     * @return group info
+     */
+    InlongGroupContext restart(boolean async) throws Exception;
 
     /**
      * delete the stream group and return group info
      *
      * @return group info
      */
-    InlongGroupInfo delete() throws Exception;
+    InlongGroupContext delete() throws Exception;
+
+    /**
+     * delete the stream group and return group info
+     *
+     * @return group info
+     */
+    InlongGroupContext delete(boolean async) throws Exception;
 
     /**
      * List all inlong streams in certain group
@@ -64,5 +119,4 @@ public interface InlongGroup {
      * @return inlong stream contained in this group
      */
     List<InlongStream> listStreams() throws Exception;
-
 }

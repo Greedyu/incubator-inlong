@@ -22,7 +22,7 @@ import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
-import org.apache.inlong.manager.common.enums.Constant;
+import org.apache.inlong.manager.common.enums.SourceType;
 import org.apache.inlong.manager.common.pojo.source.SourceResponse;
 
 /**
@@ -34,14 +34,44 @@ import org.apache.inlong.manager.common.pojo.source.SourceResponse;
 @ApiModel(value = "Response of the kafka source")
 public class KafkaSourceResponse extends SourceResponse {
 
-    private String sourceType = Constant.SOURCE_KAFKA;
+    @ApiModelProperty("Kafka topic")
+    private String topic;
 
-    @ApiModelProperty("Kafka bootstrap servers")
-    private String address;
+    @ApiModelProperty("Kafka consumer group")
+    private String groupId;
 
-    @ApiModelProperty("Kafka topicName")
-    private String topicName;
+    @ApiModelProperty("Kafka servers address")
+    private String bootstrapServers;
 
-    @ApiModelProperty("Data Serialization, support: Json, Canal, Avro")
-    private String serializationType;
+    @ApiModelProperty("Limit the amount of data read per second")
+    private String recordSpeedLimit;
+
+    @ApiModelProperty("Limit the number of bytes read per second")
+    private String byteSpeedLimit;
+
+    @ApiModelProperty("Topic partition offset")
+    private String topicPartitionOffset;
+
+    @ApiModelProperty(value = "The strategy of auto offset reset")
+    private String autoOffsetReset;
+
+    @ApiModelProperty("database pattern used for filter in canal format")
+    private String databasePattern;
+
+    @ApiModelProperty("table pattern used for filter in canal format")
+    private String tablePattern;
+
+    @ApiModelProperty("ignore parse errors, true: ignore parse error; false: not ignore parse error; default true")
+    private boolean ignoreParseErrors;
+
+    @ApiModelProperty("Timestamp standard for binlog: SQL, ISO_8601")
+    private String timestampFormatStandard;
+
+    @ApiModelProperty("Primary key, needed when serialization type is csv, json, avro")
+    private String primaryKey;
+
+    public KafkaSourceResponse() {
+        this.setSourceType(SourceType.KAFKA.name());
+    }
+
 }

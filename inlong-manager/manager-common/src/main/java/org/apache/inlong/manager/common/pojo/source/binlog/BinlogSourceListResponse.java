@@ -31,28 +31,51 @@ import org.apache.inlong.manager.common.pojo.source.SourceListResponse;
 @ApiModel("Response of binlog source paging list")
 public class BinlogSourceListResponse extends SourceListResponse {
 
-    @ApiModelProperty("Source database name")
-    private String dbName;
+    @ApiModelProperty("Username of the DB server")
+    private String user;
 
-    @ApiModelProperty("Source table name")
-    private String tableName;
+    @ApiModelProperty("Password of the DB server")
+    private String password;
 
-    @ApiModelProperty(value = "Middleware type, such as: TUBE, PULSAR")
-    private String middlewareType;
+    @ApiModelProperty("Hostname of the DB server")
+    private String hostname;
 
-    @ApiModelProperty(value = "Topic of Tube")
-    private String tubeTopic;
+    @ApiModelProperty("Exposed port of the DB server")
+    private int port;
 
-    @ApiModelProperty(value = "Cluster address of Tube")
-    private String tubeCluster;
+    @ApiModelProperty("Whether include schema, default is 'false'")
+    private String includeSchema;
 
-    @ApiModelProperty(value = "Namespace of Pulsar")
-    private String pulsarNamespace;
+    @ApiModelProperty(value = "List of DBs to be collected, seperated by ',', supporting regular expressions")
+    private String databaseWhiteList;
 
-    @ApiModelProperty(value = "Topic of Pulsar")
-    private String pulsarTopic;
+    @ApiModelProperty(value = "List of tables to be collected, seperated by ',',supporting regular expressions")
+    private String tableWhiteList;
 
-    @ApiModelProperty(value = "Cluster address of Pulsar")
-    private String pulsarCluster;
+    @ApiModelProperty("Database time zone, Default is UTC")
+    private String serverTimezone;
 
+    @ApiModelProperty("The interval for recording an offset")
+    private String intervalMs;
+
+    @ApiModelProperty("Snapshot mode, supports: initial, when_needed, never, schema_only, schema_only_recovery")
+    private String snapshotMode;
+
+    @ApiModelProperty("The file path to store offset info")
+    private String offsetFilename;
+
+    @ApiModelProperty("The file path to store history info")
+    private String historyFilename;
+
+    @ApiModelProperty("Whether to monitor the DDL, default is 'false'")
+    private String monitoredDdl;
+
+    @ApiModelProperty("Timestamp standard for binlog: SQL, ISO_8601")
+    private String timestampFormatStandard = "SQL";
+
+    @ApiModelProperty("Need transfer total database")
+    private boolean allMigration;
+
+    @ApiModelProperty(value = "Primary key must be shared by all tables", required = false)
+    private String primaryKey;
 }

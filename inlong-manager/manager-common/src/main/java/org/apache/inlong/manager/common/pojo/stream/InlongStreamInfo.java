@@ -20,18 +20,18 @@ package org.apache.inlong.manager.common.pojo.stream;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
+import lombok.Data;
+import org.apache.inlong.manager.common.util.CommonBeanUtils;
+
 import java.util.Date;
 import java.util.List;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
 
 /**
  * Inlong stream info
  */
 @Data
-@EqualsAndHashCode(callSuper = true)
 @ApiModel("Inlong stream info")
-public class InlongStreamInfo extends InlongStreamBaseInfo {
+public class InlongStreamInfo {
 
     @ApiModelProperty(value = "Primary key")
     private Integer id;
@@ -42,23 +42,26 @@ public class InlongStreamInfo extends InlongStreamBaseInfo {
     @ApiModelProperty(value = "Inlong stream description")
     private String description;
 
+    @ApiModelProperty(value = "Inlong group id")
+    private String inlongGroupId;
+
+    @ApiModelProperty(value = "Inlong stream id")
+    private String inlongStreamId;
+
     @ApiModelProperty(value = "MQ resource object, in inlong group",
             notes = "Tube corresponds to Topic, Pulsar corresponds to Namespace")
     private String mqResourceObj;
 
-    @ApiModelProperty(value = "Source type, including: FILE, DB, AUTO_PUSH (DATA_PROXY_SDK, HTTP)")
-    private String dataSourceType;
-
     @ApiModelProperty(value = "Data storage period, unit: day (required when dataSourceType=AUTO_PUSH)")
     private Integer storagePeriod;
 
-    @ApiModelProperty(value = "Data type, only support: TEXT")
+    @ApiModelProperty(value = "Data type, including: TEXT, KV, etc.")
     private String dataType;
 
-    @ApiModelProperty(value = "Data encoding format: UTF-8, GBK (required when dataSourceType=FILE, AUTO_PUSH)")
+    @ApiModelProperty(value = "Data encoding format: UTF-8, GBK")
     private String dataEncoding;
 
-    @ApiModelProperty(value = "Data separator, stored as ASCII code (required when dataSourceType=FILE, AUTO_PUSH)")
+    @ApiModelProperty(value = "Data separator, stored as ASCII code")
     private String dataSeparator;
 
     @ApiModelProperty(value = "Data field escape symbol, stored as ASCII code")
@@ -66,6 +69,11 @@ public class InlongStreamInfo extends InlongStreamBaseInfo {
 
     @ApiModelProperty(value = "(File and DB access) Whether there are predefined fields, 0: no, 1: yes")
     private Integer havePredefinedFields;
+
+    @ApiModelProperty(value = "Whether to send synchronously, 0: no, 1: yes",
+            notes = "Each task under this stream sends data synchronously, "
+                    + "which will affect the throughput of data collection, please choose carefully")
+    private Integer syncSend;
 
     @ApiModelProperty(value = "Number of access items per day, unit: 10,000 items per day")
     private Integer dailyRecords;
@@ -104,10 +112,11 @@ public class InlongStreamInfo extends InlongStreamBaseInfo {
     @ApiModelProperty(value = "Temporary view, string in JSON format")
     private String tempView;
 
-    @ApiModelProperty(value = "Extended information list")
-    private List<InlongStreamExtInfo> extList;
-
     @ApiModelProperty(value = "Field list")
     private List<InlongStreamFieldInfo> fieldList;
+
+    public InlongStreamResponse genResponse() {
+        return CommonBeanUtils.copyProperties(this, InlongStreamResponse::new);
+    }
 
 }

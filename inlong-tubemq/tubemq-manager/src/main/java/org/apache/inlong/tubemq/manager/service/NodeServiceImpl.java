@@ -39,10 +39,10 @@ import org.apache.inlong.tubemq.manager.controller.TubeMQResult;
 import org.apache.inlong.tubemq.manager.controller.node.dto.MasterDto;
 import org.apache.inlong.tubemq.manager.controller.node.request.AddBrokersReq;
 import org.apache.inlong.tubemq.manager.controller.node.request.AddTopicReq;
-import org.apache.inlong.tubemq.manager.controller.node.request.BatchAddTopicReq;
 import org.apache.inlong.tubemq.manager.controller.node.request.CloneBrokersReq;
 import org.apache.inlong.tubemq.manager.controller.node.request.CloneTopicReq;
 import org.apache.inlong.tubemq.manager.controller.node.request.QueryBrokerCfgReq;
+import org.apache.inlong.tubemq.manager.entry.ClusterEntry;
 import org.apache.inlong.tubemq.manager.entry.MasterEntry;
 import org.apache.inlong.tubemq.manager.repository.MasterRepository;
 import org.apache.inlong.tubemq.manager.service.interfaces.MasterService;
@@ -88,7 +88,6 @@ public class NodeServiceImpl implements NodeService {
      *
      * @param masterEntry - node entry
      * @return
-     * @throws IOException
      */
     @Override
     public TubeHttpBrokerInfoList requestBrokerStatus(MasterEntry masterEntry) {
@@ -117,7 +116,7 @@ public class NodeServiceImpl implements NodeService {
      *
      * @param req
      * @return
-     * @throws Exception
+     * @throws Exception exception
      */
     @Override
     public TubeMQResult cloneBrokersWithTopic(CloneBrokersReq req) throws Exception {
@@ -125,8 +124,7 @@ public class NodeServiceImpl implements NodeService {
         int clusterId = req.getClusterId();
         // 1. query source broker config
         QueryBrokerCfgReq queryReq = QueryBrokerCfgReq.getReq(req.getSourceBrokerId());
-        MasterEntry masterEntry = masterRepository.findMasterEntryByClusterIdEquals(
-                clusterId);
+        MasterEntry masterEntry = masterService.getMasterNode(Long.valueOf(clusterId));
         BrokerStatusInfo brokerStatusInfo = getBrokerStatusInfo(queryReq, masterEntry);
 
         // 2. use source broker config to clone brokers
@@ -180,7 +178,7 @@ public class NodeServiceImpl implements NodeService {
         List<IpIdRelation> ipids = addBrokerResult.getData();
         List<Integer> brokerIds = Lists.newArrayList();
         for (IpIdRelation ipid : ipids) {
-            brokerIds.add(ipid.getId());
+            brokerIds.add(ipid.getBrokerId());
         }
         return brokerIds;
     }
@@ -253,7 +251,7 @@ public class NodeServiceImpl implements NodeService {
      * @param needReloadList
      */
     @Override
-    public void handleReloadBroker(MasterEntry masterEntry, List<Integer> needReloadList) {
+    public void handleReloadBroker(MasterEntry masterEntry, List<Integer> needReloadList, ClusterEntry clusterEntry) {
         // reload without exceed max broker.
         if (needReloadList.isEmpty()) {
             return;
@@ -261,7 +259,7 @@ public class NodeServiceImpl implements NodeService {
         int begin = 0;
         int end = 0;
         do {
-            end = Math.min(maxConfigurableBrokerSize + begin, needReloadList.size());
+            end = Math.min(clusterEntry.getReloadBrokerSize() + begin, needReloadList.size());
             List<Integer> brokerIdList = needReloadList.subList(begin, end);
             String brokerStr = StringUtils.join(brokerIdList, ",");
             String url = TubeConst.SCHEMA + masterEntry.getIp() + ":" + masterEntry.getWebPort()
@@ -310,7 +308,7 @@ public class NodeServiceImpl implements NodeService {
      *
      * @param req
      * @return
-     * @throws Exception
+     * @throws Exception exception
      */
     @Override
     public TubeMQResult cloneTopicToBrokers(CloneTopicReq req) throws Exception {
@@ -345,21 +343,6 @@ public class NodeServiceImpl implements NodeService {
 
     }
 
-    /**
-     * add topic to brokers
-     *
-     * @param req
-     * @return
-     */
-    @Override
-    public TubeMQResult batchAddTopic(BatchAddTopicReq req) {
-        MasterEntry masterEntry = masterService.getMasterNode(req);
-        if (masterEntry == null) {
-            return TubeMQResult.errorResult(TubeMQErrorConst.NO_SUCH_CLUSTER);
-        }
-        return addTopicsToBrokers(masterEntry, req.getBrokerIds(), req.getAddTopicReqs());
-    }
-
     @Override
     public void addNode(MasterEntry masterEntry) {
         try {
@@ -373,7 +356,7 @@ public class NodeServiceImpl implements NodeService {
     @Override
     public TubeMQResult modifyMasterNode(MasterDto masterDto) {
         try {
-            MasterEntry masterEntry = masterRepository.findMasterEntryByClusterIdEquals(masterDto.getClusterId());
+            MasterEntry masterEntry = masterService.getMasterNode(masterDto.getClusterId());
             masterEntry.setIp(masterDto.getIp());
             masterEntry.setStandby(masterDto.isStandBy());
             masterEntry.setToken(masterDto.getToken());

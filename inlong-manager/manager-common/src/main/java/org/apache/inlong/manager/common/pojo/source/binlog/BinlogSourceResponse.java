@@ -22,7 +22,7 @@ import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
-import org.apache.inlong.manager.common.enums.Constant;
+import org.apache.inlong.manager.common.enums.SourceType;
 import org.apache.inlong.manager.common.pojo.source.SourceResponse;
 
 /**
@@ -34,49 +34,55 @@ import org.apache.inlong.manager.common.pojo.source.SourceResponse;
 @ApiModel(value = "Response of the binlog source")
 public class BinlogSourceResponse extends SourceResponse {
 
-    private String sourceType = Constant.SOURCE_DB_BINLOG;
+    public BinlogSourceResponse() {
+        this.setSourceType(SourceType.BINLOG.name());
+    }
 
-    @ApiModelProperty("Source database name")
-    private String dbName;
+    @ApiModelProperty("Username of the DB server")
+    private String user;
 
-    @ApiModelProperty("Source table name")
-    private String tableName;
+    @ApiModelProperty("Password of the DB server")
+    private String password;
 
-    @ApiModelProperty("Data charset")
-    private String charset;
+    @ApiModelProperty("Hostname of the DB server")
+    private String hostname;
 
-    @ApiModelProperty(value = "Table fields, separated by commas")
-    private String tableFields;
+    @ApiModelProperty("Exposed port of the DB server")
+    private int port;
 
-    @ApiModelProperty(value = "Data separator, default is 0x01")
-    private String dataSeparator = "0x01";
+    @ApiModelProperty("Whether include schema, default is 'false'")
+    private String includeSchema;
 
-    @ApiModelProperty(value = "Middleware type, such as: TUBE, PULSAR")
-    private String middlewareType;
+    @ApiModelProperty(value = "List of DBs to be collected, seperated by ',', supporting regular expressions")
+    private String databaseWhiteList;
 
-    @ApiModelProperty(value = "Topic of Tube")
-    private String tubeTopic;
+    @ApiModelProperty(value = "List of tables to be collected, seperated by ',',supporting regular expressions")
+    private String tableWhiteList;
 
-    @ApiModelProperty(value = "Cluster address of Tube")
-    private String tubeCluster;
+    @ApiModelProperty("Database time zone, Default is UTC")
+    private String serverTimezone;
 
-    @ApiModelProperty(value = "Namespace of Pulsar")
-    private String pulsarNamespace;
+    @ApiModelProperty("The interval for recording an offset")
+    private String intervalMs;
 
-    @ApiModelProperty(value = "Topic of Pulsar")
-    private String pulsarTopic;
+    @ApiModelProperty("Snapshot mode, supports: initial, when_needed, never, schema_only, schema_only_recovery")
+    private String snapshotMode;
 
-    @ApiModelProperty(value = "Cluster address of Pulsar")
-    private String pulsarCluster;
+    @ApiModelProperty("The file path to store offset info")
+    private String offsetFilename;
 
-    @ApiModelProperty(value = "Whether to skip delete events in binlog, default: 1, that is skip")
-    private Integer skipDelete;
+    @ApiModelProperty("The file path to store history info")
+    private String historyFilename;
 
-    @ApiModelProperty(value = "Collect starts from the specified binlog location, and it is modified after delivery."
-            + "If it is empty, an empty string is returned")
-    private String startPosition;
+    @ApiModelProperty("Whether to monitor the DDL, default is 'false'")
+    private String monitoredDdl;
 
-    @ApiModelProperty(value = "When the field value is null, the replaced field defaults to 'null'")
-    private String nullFieldChar;
+    @ApiModelProperty("Timestamp standard for binlog: SQL, ISO_8601")
+    private String timestampFormatStandard = "SQL";
 
+    @ApiModelProperty("Need transfer total database")
+    private boolean allMigration;
+
+    @ApiModelProperty(value = "Primary key must be shared by all tables", required = false)
+    private String primaryKey;
 }

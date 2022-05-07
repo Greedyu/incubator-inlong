@@ -18,7 +18,6 @@
 package org.apache.inlong.manager.service.source;
 
 import com.github.pagehelper.PageInfo;
-import org.apache.inlong.common.pojo.agent.TaskSnapshotRequest;
 import org.apache.inlong.manager.common.pojo.source.SourceListResponse;
 import org.apache.inlong.manager.common.pojo.source.SourcePageRequest;
 import org.apache.inlong.manager.common.pojo.source.SourceRequest;
@@ -85,6 +84,17 @@ public interface StreamSourceService {
     boolean update(SourceRequest sourceRequest, String operator);
 
     /**
+     * Update source status by the given groupId and streamId
+     *
+     * @param groupId The belongs group id.
+     * @param streamId The belongs stream id.
+     * @param targetStatus The target status.
+     * @param operator The operator name.
+     * @return whether succeed
+     */
+    boolean updateStatus(String groupId, String streamId, Integer targetStatus, String operator);
+
+    /**
      * Delete the stream source by the given id and source type.
      *
      * @param id The primary key of the source.
@@ -95,13 +105,24 @@ public interface StreamSourceService {
     boolean delete(Integer id, String sourceType, String operator);
 
     /**
-     * Modify source data status.
+     * Delete the stream source by the given id and source type.
      *
-     * @param id Source id.
-     * @param status Target status.
-     * @param log Modify the log.
+     * @param id The primary key of the source.
+     * @param sourceType Source type.
+     * @param operator Operator's name
+     * @return Whether succeed
      */
-    void updateStatus(int id, int status, String log);
+    boolean restart(Integer id, String sourceType, String operator);
+
+    /**
+     * Delete the stream source by the given id and source type.
+     *
+     * @param id The primary key of the source.
+     * @param sourceType Source type.
+     * @param operator Operator's name
+     * @return Whether succeed
+     */
+    boolean stop(Integer id, String sourceType, String operator);
 
     /**
      * Logically delete stream source with the given conditions.
@@ -141,13 +162,5 @@ public interface StreamSourceService {
     default Boolean updateAfterApprove(String operator) {
         return true;
     }
-
-    /**
-     * Report the heartbeat for given source.
-     *
-     * @param request Heartbeat request.
-     * @return Whether succeed.
-     */
-    Boolean reportSnapshot(TaskSnapshotRequest request);
 
 }

@@ -20,11 +20,10 @@ package org.apache.inlong.common.metric.reporter;
 import static org.mockito.Mockito.mock;
 
 import java.util.concurrent.Future;
+import org.apache.inlong.common.reporpter.Response;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.inlong.common.reporpter.StreamConfigLogReporter;
-import org.apache.inlong.common.reporpter.StreamMetricReporter;
 import org.apache.inlong.common.reporpter.dto.StreamConfigLogInfo;
-import org.apache.inlong.common.reporpter.dto.StreamMetricInfo;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -33,25 +32,14 @@ public class ReporterTest {
 
     @Test
     public void streamConfigLogReporterTest() throws Exception {
-        String serverUrl = "http://127.0.0.1:/8080/openapi/stream/log/reportConfigLogStatus";
+        String serverUrl = "http://127.0.0.1:8083/api/inlong/manager/openapi/stream/log"
+                + "/reportConfigLogStatus";
         CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
         StreamConfigLogReporter streamConfigLogReporter = new StreamConfigLogReporter(httpClient,
                 serverUrl);
         StreamConfigLogReporter spy = Mockito.spy(streamConfigLogReporter);
         StreamConfigLogInfo info = new StreamConfigLogInfo();
-        Future<String> future = spy.asyncReportData(info, serverUrl);
-        Assert.assertEquals(future.get(),null);
-    }
-
-    @Test
-    public void streamMetricReporterTest() throws Exception {
-        String serverUrl = "http://127.0.0.1:/8080/openapi/stream/metric/reportMetricStatus";
-        CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
-        StreamMetricReporter streamMetricReporter = new StreamMetricReporter(httpClient,
-                serverUrl);
-        StreamMetricReporter spy = Mockito.spy(streamMetricReporter);
-        StreamMetricInfo info = new StreamMetricInfo();
-        Future<String> future = spy.asyncReportData(info, serverUrl);
+        Future<Response> future = spy.asyncReportData(info, serverUrl);
         Assert.assertEquals(future.get(),null);
     }
 }
