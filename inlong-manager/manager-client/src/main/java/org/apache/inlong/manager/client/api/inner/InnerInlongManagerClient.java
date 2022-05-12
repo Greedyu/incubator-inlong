@@ -30,7 +30,7 @@ import okhttp3.RequestBody;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.inlong.manager.client.api.ClientConfiguration;
-import org.apache.inlong.manager.client.api.InlongGroupContext.InlongGroupState;
+import org.apache.inlong.manager.client.api.InlongGroupContext.InlongGroupStatus;
 import org.apache.inlong.manager.client.api.auth.Authentication;
 import org.apache.inlong.manager.client.api.auth.DefaultAuthentication;
 import org.apache.inlong.manager.client.api.util.AssertUtil;
@@ -166,7 +166,7 @@ public class InnerInlongManagerClient {
             pageNum = 1;
         }
         JSONObject groupQuery = new JSONObject();
-        groupQuery.put("keyWord", keyword);
+        groupQuery.put("keyword", keyword);
         groupQuery.put("status", status);
         groupQuery.put("pageNum", pageNum);
         groupQuery.put("pageSize", pageSize);
@@ -201,14 +201,13 @@ public class InnerInlongManagerClient {
     }
 
     /**
-     * List inlong group
+     * List inlong group by the page request
      *
-     * @param inlongGroupRequest The inlongGroupRequest
+     * @param pageRequest The pageRequest
      * @return Response encapsulate of inlong group list
      */
-    public Response<PageInfo<InlongGroupListResponse>> listGroups(InlongGroupPageRequest inlongGroupRequest)
-            throws Exception {
-        String requestParams = GsonUtil.toJson(inlongGroupRequest);
+    public Response<PageInfo<InlongGroupListResponse>> listGroups(InlongGroupPageRequest pageRequest) throws Exception {
+        String requestParams = GsonUtil.toJson(pageRequest);
         RequestBody requestBody = RequestBody.create(MediaType.parse("application/json"), requestParams);
         String path = HTTP_PATH + "/group/list";
         final String url = formatUrl(path);
@@ -481,12 +480,10 @@ public class InnerInlongManagerClient {
         }
     }
 
-    public boolean deleteSource(int id, String type) {
+    public boolean deleteSource(int id) {
         AssertUtil.isTrue(id > 0, "sourceId is illegal");
-        AssertUtil.notEmpty(type, "sourceType should not be null");
         final String path = HTTP_PATH + "/source/delete/" + id;
         String url = formatUrl(path);
-        url = String.format("%s&sourceType=%s", url, type);
         RequestBody requestBody = RequestBody.create(MediaType.parse("application/json"), "");
         Request request = new Request.Builder()
                 .url(url)
@@ -639,12 +636,10 @@ public class InnerInlongManagerClient {
         }
     }
 
-    public boolean deleteSink(int id, String type) {
+    public boolean deleteSink(int id) {
         AssertUtil.isTrue(id > 0, "sinkId is illegal");
-        AssertUtil.notEmpty(type, "sinkType should not be null");
         final String path = HTTP_PATH + "/sink/delete/" + id;
         String url = formatUrl(path);
-        url = String.format("%s&sinkType=%s", url, type);
         RequestBody requestBody = RequestBody.create(MediaType.parse("application/json"), "");
         Request request = new Request.Builder()
                 .url(url)
@@ -787,19 +782,19 @@ public class InnerInlongManagerClient {
         }
     }
 
-    public boolean operateInlongGroup(String groupId, InlongGroupState status) {
+    public boolean operateInlongGroup(String groupId, InlongGroupStatus status) {
         return operateInlongGroup(groupId, status, false);
     }
 
-    public boolean operateInlongGroup(String groupId, InlongGroupState status, boolean async) {
+    public boolean operateInlongGroup(String groupId, InlongGroupStatus status, boolean async) {
         String path = HTTP_PATH;
-        if (status == InlongGroupState.STOPPED) {
+        if (status == InlongGroupStatus.STOPPED) {
             if (async) {
                 path += "/group/suspendProcessAsync/";
             } else {
                 path += "/group/suspendProcess/";
             }
-        } else if (status == InlongGroupState.STARTED) {
+        } else if (status == InlongGroupStatus.STARTED) {
             if (async) {
                 path += "/group/restartProcessAsync/";
             } else {

@@ -41,6 +41,12 @@ public class InlongStreamResponse {
     @ApiModelProperty(value = "Inlong stream name", required = true)
     private String name;
 
+    @ApiModelProperty(value = "Inlong group id")
+    private String inlongGroupId;
+
+    @ApiModelProperty(value = "Inlong stream id")
+    private String inlongStreamId;
+
     @ApiModelProperty(value = "Inlong stream description")
     private String description;
 
@@ -93,6 +99,7 @@ public class InlongStreamResponse {
     private Integer previousStatus;
 
     @ApiModelProperty(value = "is deleted? 0: deleted, 1: not deleted")
+    @Builder.Default
     private Integer isDeleted = 0;
 
     private String creator;
