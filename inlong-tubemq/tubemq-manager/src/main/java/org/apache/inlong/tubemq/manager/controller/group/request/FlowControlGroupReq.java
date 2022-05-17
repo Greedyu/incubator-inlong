@@ -15,17 +15,23 @@
  * limitations under the License.
  */
 
-package org.apache.inlong.agent.checkpoint;
+package org.apache.inlong.tubemq.manager.controller.group.request;
 
-public interface Checkpoint {
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
+import org.apache.inlong.tubemq.manager.controller.node.request.BaseReq;
 
-    /**
-     * commit checkpoint.
-     */
-    void commit();
-
-    /**
-     * rollback checkpoint.
-     */
-    void rollback();
+/**
+ * Consumer group flow control rules
+ */
+@Data
+@EqualsAndHashCode(callSuper = true)
+@ToString(callSuper = true)
+public class FlowControlGroupReq extends BaseReq {
+    private String groupName;
+    private Integer statusId;
+    private Integer qryPriorityId;
+    private String confModAuthToken;
+    private String createUser;
 }

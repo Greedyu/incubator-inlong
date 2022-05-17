@@ -57,6 +57,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * Inlong stream service implementation.
+ */
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class InlongStreamImpl extends InlongStream {
@@ -303,7 +306,7 @@ public class InlongStreamImpl extends InlongStream {
         }
         streamInfo.setFieldList(InlongStreamTransfer.createStreamFields(this.streamFields, streamInfo));
         StreamPipeline streamPipeline = createPipeline();
-        streamInfo.setTempView(GsonUtil.toJson(streamPipeline));
+        streamInfo.setExtParams(GsonUtil.toJson(streamPipeline));
         Pair<Boolean, String> updateMsg = managerClient.updateStreamInfo(streamInfo);
         if (!updateMsg.getKey()) {
             throw new RuntimeException(String.format("Update data stream failed:%s", updateMsg.getValue()));

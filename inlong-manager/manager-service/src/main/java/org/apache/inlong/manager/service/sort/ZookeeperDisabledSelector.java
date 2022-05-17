@@ -22,7 +22,6 @@ import org.apache.inlong.manager.common.enums.MQType;
 import org.apache.inlong.manager.common.pojo.group.InlongGroupInfo;
 import org.apache.inlong.manager.common.pojo.workflow.form.GroupResourceProcessForm;
 import org.apache.inlong.manager.common.pojo.workflow.form.ProcessForm;
-import org.apache.inlong.manager.common.pojo.workflow.form.UpdateGroupProcessForm;
 import org.apache.inlong.manager.workflow.WorkflowContext;
 import org.apache.inlong.manager.workflow.event.EventSelector;
 import org.springframework.stereotype.Component;
@@ -42,16 +41,8 @@ public class ZookeeperDisabledSelector implements EventSelector {
             GroupResourceProcessForm groupResourceForm = (GroupResourceProcessForm) processForm;
             InlongGroupInfo groupInfo = groupResourceForm.getGroupInfo();
 
-            boolean enable = groupInfo.getZookeeperEnabled() == 0
-                    && MQType.forType(groupInfo.getMiddlewareType()) != MQType.NONE;
-            log.info("zookeeper disabled was [{}] for groupId [{}]", enable, groupId);
-            return enable;
-        } else if (processForm instanceof UpdateGroupProcessForm) {
-            UpdateGroupProcessForm updateGroupProcessForm = (UpdateGroupProcessForm) processForm;
-            InlongGroupInfo groupInfo = updateGroupProcessForm.getGroupInfo();
-
-            boolean enable = groupInfo.getZookeeperEnabled() == 0
-                    && MQType.forType(groupInfo.getMiddlewareType()) != MQType.NONE;
+            boolean enable = groupInfo.getEnableZookeeper() == 0
+                    && MQType.forType(groupInfo.getMqType()) != MQType.NONE;
             log.info("zookeeper disabled was [{}] for groupId [{}]", enable, groupId);
             return enable;
         } else {
