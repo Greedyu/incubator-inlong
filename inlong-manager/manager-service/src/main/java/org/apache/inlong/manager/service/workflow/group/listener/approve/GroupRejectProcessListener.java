@@ -24,7 +24,7 @@ import org.apache.inlong.manager.common.exceptions.WorkflowListenerException;
 import org.apache.inlong.manager.common.pojo.workflow.form.NewGroupProcessForm;
 import org.apache.inlong.manager.dao.entity.InlongGroupEntity;
 import org.apache.inlong.manager.dao.mapper.InlongGroupEntityMapper;
-import org.apache.inlong.manager.service.core.InlongGroupService;
+import org.apache.inlong.manager.service.group.InlongGroupService;
 import org.apache.inlong.manager.workflow.WorkflowContext;
 import org.apache.inlong.manager.workflow.event.ListenerResult;
 import org.apache.inlong.manager.workflow.event.process.ProcessEvent;
@@ -64,7 +64,7 @@ public class GroupRejectProcessListener implements ProcessEventListener {
         }
 
         // After reject, update inlong group status to [GROUP_APPROVE_REJECT]
-        String username = context.getApplicant();
+        String username = context.getOperator();
         groupService.updateStatus(groupId, GroupStatus.APPROVE_REJECTED.getCode(), username);
         return ListenerResult.success();
     }

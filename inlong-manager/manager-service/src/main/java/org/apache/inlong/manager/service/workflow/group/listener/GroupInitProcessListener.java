@@ -23,7 +23,7 @@ import org.apache.inlong.manager.common.exceptions.BusinessException;
 import org.apache.inlong.manager.common.exceptions.WorkflowListenerException;
 import org.apache.inlong.manager.common.pojo.group.InlongGroupInfo;
 import org.apache.inlong.manager.common.pojo.workflow.form.GroupResourceProcessForm;
-import org.apache.inlong.manager.service.core.InlongGroupService;
+import org.apache.inlong.manager.service.group.InlongGroupService;
 import org.apache.inlong.manager.workflow.WorkflowContext;
 import org.apache.inlong.manager.workflow.event.ListenerResult;
 import org.apache.inlong.manager.workflow.event.process.ProcessEvent;
@@ -51,7 +51,7 @@ public class GroupInitProcessListener implements ProcessEventListener {
         InlongGroupInfo groupInfo = groupService.get(context.getProcessForm().getInlongGroupId());
         if (groupInfo != null) {
             final int status = GroupStatus.CONFIG_ING.getCode();
-            final String username = context.getApplicant();
+            final String username = context.getOperator();
             groupService.updateStatus(groupInfo.getInlongGroupId(), status, username);
             form.setGroupInfo(groupInfo);
         } else {

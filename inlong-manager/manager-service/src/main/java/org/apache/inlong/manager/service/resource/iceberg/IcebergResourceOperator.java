@@ -18,7 +18,7 @@
 package org.apache.inlong.manager.service.resource.iceberg;
 
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.inlong.manager.common.enums.GlobalConstants;
+import org.apache.inlong.manager.common.consts.InlongConstants;
 import org.apache.inlong.manager.common.enums.SinkStatus;
 import org.apache.inlong.manager.common.enums.SinkType;
 import org.apache.inlong.manager.common.exceptions.WorkflowException;
@@ -70,7 +70,7 @@ public class IcebergResourceOperator implements SinkResourceOperator {
         if (SinkStatus.CONFIG_SUCCESSFUL.getCode().equals(sinkInfo.getStatus())) {
             LOGGER.warn("sink resource [" + sinkInfo.getId() + "] already success, skip to create");
             return;
-        } else if (GlobalConstants.DISABLE_CREATE_RESOURCE.equals(sinkInfo.getEnableCreateResource())) {
+        } else if (InlongConstants.DISABLE_CREATE_RESOURCE.equals(sinkInfo.getEnableCreateResource())) {
             LOGGER.warn("create resource was disabled, skip to create for [" + sinkInfo.getId() + "]");
             return;
         }
@@ -89,8 +89,8 @@ public class IcebergResourceOperator implements SinkResourceOperator {
         }
         IcebergTableInfo tableInfo = IcebergSinkDTO.getIcebergTableInfo(icebergInfo, columnInfoList);
 
-        String metastoreUri = icebergInfo.getJdbcUrl();
-        String warehouse = icebergInfo.getDataPath();
+        String metastoreUri = icebergInfo.getCatalogUri();
+        String warehouse = icebergInfo.getWarehouse();
         String dbName = icebergInfo.getDbName();
         String tableName = icebergInfo.getTableName();
 
@@ -131,17 +131,11 @@ public class IcebergResourceOperator implements SinkResourceOperator {
         // set columns
         List<IcebergColumnInfo> columnList = new ArrayList<>();
         for (StreamSinkFieldEntity field : fieldList) {
-            IcebergColumnInfo column = new IcebergColumnInfo();
+            IcebergColumnInfo column = IcebergColumnInfo.getFromJson(field.getExtParams());
             column.setName(field.getFieldName());
             column.setType(field.getFieldType());
             column.setDesc(field.getFieldComment());
             column.setRequired(field.getIsRequired() != null && field.getIsRequired() > 0);
-            column.setPartitionStrategy(field.getPartitionStrategy());
-            column.setLength(field.getFieldLength());
-            column.setPrecision(field.getFieldPrecision());
-            column.setScale(field.getFieldScale());
-            column.setBucketNum(field.getBucketNum());
-            column.setWidth(field.getWidth());
             columnList.add(column);
         }
 

@@ -19,20 +19,31 @@ package org.apache.inlong.manager.common.pojo.cluster;
 
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 import org.apache.inlong.manager.common.beans.PageRequest;
+
+import java.util.List;
 
 /**
  * Inlong cluster paging query conditions
  */
 @Data
 @EqualsAndHashCode(callSuper = false)
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @ApiModel("Inlong cluster paging query request")
 public class InlongClusterPageRequest extends PageRequest {
 
     @ApiModelProperty(value = "Cluster type, including TUBE, PULSAR, DATA_PROXY, etc.")
     private String type;
+
+    @ApiModelProperty(value = "Cluster type list")
+    private List<String> typeList;
 
     @ApiModelProperty(value = "Cluster name")
     private String name;
@@ -42,6 +53,12 @@ public class InlongClusterPageRequest extends PageRequest {
 
     @ApiModelProperty(value = "Cluster tag")
     private String clusterTag;
+
+    @ApiModelProperty(value = "Extend tag")
+    private String extTag;
+
+    @ApiModelProperty(value = "The inlong cluster tag list")
+    private List<String> clusterTagList;
 
     @ApiModelProperty(value = "Status")
     private Integer status;

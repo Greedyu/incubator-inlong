@@ -42,14 +42,11 @@ public class IcebergSinkDTO {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    @ApiModelProperty("Hive JDBC URL")
-    private String jdbcUrl;
+    @ApiModelProperty("Catalog uri, such as hive metastore thrift://ip:port")
+    private String catalogUri;
 
-    @ApiModelProperty("Username for JDBC URL")
-    private String username;
-
-    @ApiModelProperty("User password")
-    private String password;
+    @ApiModelProperty("Iceberg data warehouse dir")
+    private String warehouse;
 
     @ApiModelProperty("Target database name")
     private String dbName;
@@ -63,14 +60,11 @@ public class IcebergSinkDTO {
     @ApiModelProperty("File format, support: Parquet, Orc, Avro")
     private String fileFormat;
 
-    @ApiModelProperty("Data encoding type")
-    private String dataEncoding;
+    @ApiModelProperty("Catalog type, like: hive, hadoop, default is hive")
+    private String catalogType;
 
-    @ApiModelProperty("Data field separator")
-    private String dataSeparator;
-
-    @ApiModelProperty("Data consistency strategy, support: EXACTLY_ONCE(default), AT_LEAST_ONCE")
-    private String dataConsistency;
+    @ApiModelProperty("Primary key")
+    private String primaryKey;
 
     @ApiModelProperty("Properties for iceberg")
     private Map<String, Object> properties;
@@ -80,16 +74,14 @@ public class IcebergSinkDTO {
      */
     public static IcebergSinkDTO getFromRequest(IcebergSinkRequest request) {
         return IcebergSinkDTO.builder()
-                .jdbcUrl(request.getJdbcUrl())
-                .username(request.getUsername())
-                .password(request.getPassword())
+                .catalogUri(request.getCatalogUri())
+                .warehouse(request.getWarehouse())
                 .dbName(request.getDbName())
                 .tableName(request.getTableName())
                 .dataPath(request.getDataPath())
                 .fileFormat(request.getFileFormat())
-                .dataEncoding(request.getDataEncoding())
-                .dataSeparator(request.getDataSeparator())
-                .dataConsistency(request.getDataConsistency())
+                .catalogType(request.getCatalogType())
+                .primaryKey(request.getPrimaryKey())
                 .properties(request.getProperties())
                 .build();
     }

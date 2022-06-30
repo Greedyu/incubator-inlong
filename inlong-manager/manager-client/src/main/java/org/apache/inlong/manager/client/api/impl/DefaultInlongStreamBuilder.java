@@ -24,28 +24,24 @@ import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.inlong.manager.client.api.InlongStream;
 import org.apache.inlong.manager.client.api.InlongStreamBuilder;
-import org.apache.inlong.manager.client.api.InlongStreamConf;
 import org.apache.inlong.manager.client.api.inner.InnerGroupContext;
 import org.apache.inlong.manager.client.api.inner.InnerInlongManagerClient;
 import org.apache.inlong.manager.client.api.inner.InnerStreamContext;
-import org.apache.inlong.manager.client.api.util.GsonUtil;
-import org.apache.inlong.manager.client.api.util.InlongStreamSinkTransfer;
-import org.apache.inlong.manager.client.api.util.InlongStreamSourceTransfer;
-import org.apache.inlong.manager.client.api.util.InlongStreamTransfer;
-import org.apache.inlong.manager.client.api.util.InlongStreamTransformTransfer;
+import org.apache.inlong.manager.client.api.util.StreamTransformTransfer;
+import org.apache.inlong.manager.common.pojo.group.InlongGroupInfo;
 import org.apache.inlong.manager.common.pojo.sink.SinkListResponse;
 import org.apache.inlong.manager.common.pojo.sink.SinkRequest;
+import org.apache.inlong.manager.common.pojo.sink.StreamSink;
 import org.apache.inlong.manager.common.pojo.source.SourceListResponse;
 import org.apache.inlong.manager.common.pojo.source.SourceRequest;
-import org.apache.inlong.manager.common.pojo.stream.InlongStreamFieldInfo;
+import org.apache.inlong.manager.common.pojo.source.StreamSource;
 import org.apache.inlong.manager.common.pojo.stream.InlongStreamInfo;
 import org.apache.inlong.manager.common.pojo.stream.StreamField;
 import org.apache.inlong.manager.common.pojo.stream.StreamPipeline;
-import org.apache.inlong.manager.common.pojo.stream.StreamSink;
-import org.apache.inlong.manager.common.pojo.stream.StreamSource;
 import org.apache.inlong.manager.common.pojo.stream.StreamTransform;
 import org.apache.inlong.manager.common.pojo.transform.TransformRequest;
 import org.apache.inlong.manager.common.pojo.transform.TransformResponse;
+import org.apache.inlong.manager.common.util.JsonUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -55,62 +51,63 @@ import java.util.Map;
  */
 public class DefaultInlongStreamBuilder extends InlongStreamBuilder {
 
-    private InlongStreamImpl inlongStream;
+    private final InlongStreamImpl inlongStream;
+    private final InnerStreamContext streamContext;
+    private final InnerInlongManagerClient managerClient;
 
-    private InnerStreamContext streamContext;
-
-    private InnerInlongManagerClient managerClient;
-
-    public DefaultInlongStreamBuilder(
-            InlongStreamConf streamConf,
-            InnerGroupContext groupContext,
+    public DefaultInlongStreamBuilder(InlongStreamInfo streamInfo, InnerGroupContext groupContext,
             InnerInlongManagerClient managerClient) {
         this.managerClient = managerClient;
         if (MapUtils.isEmpty(groupContext.getStreamContextMap())) {
             groupContext.setStreamContextMap(Maps.newHashMap());
         }
-        InlongStreamInfo stream = InlongStreamTransfer.createStreamInfo(streamConf, groupContext.getGroupInfo());
-        InnerStreamContext streamContext = new InnerStreamContext(stream);
+
+        InlongGroupInfo groupInfo = groupContext.getGroupInfo();
+        String groupId = groupInfo.getInlongGroupId();
+        streamInfo.setInlongGroupId(groupId);
+        streamInfo.setCreator(groupInfo.getCreator());
+        InnerStreamContext streamContext = new InnerStreamContext(streamInfo);
         groupContext.setStreamContext(streamContext);
         this.streamContext = streamContext;
-        this.inlongStream = new InlongStreamImpl(groupContext.getGroupInfo().getName(), stream.getName(),
-                managerClient);
-        if (CollectionUtils.isNotEmpty(streamConf.getStreamFields())) {
-            this.inlongStream.setStreamFields(streamConf.getStreamFields());
+
+        this.inlongStream = new InlongStreamImpl(groupId, streamInfo.getInlongStreamId(), managerClient);
+        if (CollectionUtils.isNotEmpty(streamInfo.getFieldList())) {
+            this.inlongStream.setStreamFields(streamInfo.getFieldList());
         }
         groupContext.setStream(this.inlongStream);
     }
 
     @Override
     public InlongStreamBuilder source(StreamSource source) {
+        InlongStreamInfo streamInfo = streamContext.getStreamInfo();
+        source.setInlongGroupId(streamInfo.getInlongGroupId());
+        source.setInlongStreamId(streamInfo.getInlongStreamId());
         inlongStream.addSource(source);
-        SourceRequest sourceRequest = InlongStreamSourceTransfer.createSourceRequest(source,
-                streamContext.getStreamInfo());
-        streamContext.setSourceRequest(sourceRequest);
+        streamContext.setSourceRequest(source.genSourceRequest());
         return this;
     }
 
     @Override
-    public InlongStreamBuilder sink(StreamSink sink) {
-        inlongStream.addSink(sink);
-        SinkRequest sinkRequest = InlongStreamSinkTransfer.createSinkRequest(sink, streamContext.getStreamInfo());
-        streamContext.setSinkRequest(sinkRequest);
+    public InlongStreamBuilder sink(StreamSink streamSink) {
+        InlongStreamInfo streamInfo = streamContext.getStreamInfo();
+        streamSink.setInlongGroupId(streamInfo.getInlongGroupId());
+        streamSink.setInlongStreamId(streamInfo.getInlongStreamId());
+        inlongStream.addSink(streamSink);
+        streamContext.setSinkRequest(streamSink.genSinkRequest());
         return this;
     }
 
     @Override
     public InlongStreamBuilder fields(List<StreamField> fieldList) {
         inlongStream.setStreamFields(fieldList);
-        List<InlongStreamFieldInfo> streamFieldInfos = InlongStreamTransfer.createStreamFields(fieldList,
-                streamContext.getStreamInfo());
-        streamContext.updateStreamFields(streamFieldInfos);
+        streamContext.updateStreamFields(fieldList);
         return this;
     }
 
     @Override
     public InlongStreamBuilder transform(StreamTransform streamTransform) {
         inlongStream.addTransform(streamTransform);
-        TransformRequest transformRequest = InlongStreamTransformTransfer.createTransformRequest(streamTransform,
+        TransformRequest transformRequest = StreamTransformTransfer.createTransformRequest(streamTransform,
                 streamContext.getStreamInfo());
         streamContext.setTransformRequest(transformRequest);
         return this;
@@ -120,23 +117,22 @@ public class DefaultInlongStreamBuilder extends InlongStreamBuilder {
     public InlongStream init() {
         InlongStreamInfo streamInfo = streamContext.getStreamInfo();
         StreamPipeline streamPipeline = inlongStream.createPipeline();
-        streamInfo.setExtParams(GsonUtil.toJson(streamPipeline));
-        Double streamIndex = managerClient.createStreamInfo(streamInfo);
-        streamInfo.setId(streamIndex.intValue());
-        //Create source and update index
+        streamInfo.setExtParams(JsonUtils.toJsonString(streamPipeline));
+        streamInfo.setId(managerClient.createStreamInfo(streamInfo));
+        // Create source and update index
         List<SourceRequest> sourceRequests = Lists.newArrayList(streamContext.getSourceRequests().values());
         for (SourceRequest sourceRequest : sourceRequests) {
-            sourceRequest.setId(managerClient.createSource(sourceRequest).intValue());
+            sourceRequest.setId(managerClient.createSource(sourceRequest));
         }
-        //Create sink and update index
+        // Create sink and update index
         List<SinkRequest> sinkRequests = Lists.newArrayList(streamContext.getSinkRequests().values());
         for (SinkRequest sinkRequest : sinkRequests) {
-            sinkRequest.setId(managerClient.createSink(sinkRequest).intValue());
+            sinkRequest.setId(managerClient.createSink(sinkRequest));
         }
-        //Create transform and update index
+        // Create transform and update index
         List<TransformRequest> transformRequests = Lists.newArrayList(streamContext.getTransformRequests().values());
         for (TransformRequest transformRequest : transformRequests) {
-            transformRequest.setId(managerClient.createTransform(transformRequest).intValue());
+            transformRequest.setId(managerClient.createTransform(transformRequest));
         }
         return inlongStream;
     }
@@ -145,7 +141,7 @@ public class DefaultInlongStreamBuilder extends InlongStreamBuilder {
     public InlongStream initOrUpdate() {
         InlongStreamInfo dataStreamInfo = streamContext.getStreamInfo();
         StreamPipeline streamPipeline = inlongStream.createPipeline();
-        dataStreamInfo.setExtParams(GsonUtil.toJson(streamPipeline));
+        dataStreamInfo.setExtParams(JsonUtils.toJsonString(streamPipeline));
         Boolean isExist = managerClient.isStreamExists(dataStreamInfo);
         if (isExist) {
             Pair<Boolean, String> updateMsg = managerClient.updateStreamInfo(dataStreamInfo);
@@ -169,11 +165,11 @@ public class DefaultInlongStreamBuilder extends InlongStreamBuilder {
         List<TransformResponse> transformResponses = managerClient.listTransform(groupId, streamId);
         List<String> updateTransformNames = Lists.newArrayList();
         for (TransformResponse transformResponse : transformResponses) {
-            StreamTransform transform = InlongStreamTransformTransfer.parseStreamTransform(transformResponse);
+            StreamTransform transform = StreamTransformTransfer.parseStreamTransform(transformResponse);
             final String transformName = transform.getTransformName();
             final int id = transformResponse.getId();
             if (transformRequests.get(transformName) == null) {
-                TransformRequest transformRequest = InlongStreamTransformTransfer.createTransformRequest(transform,
+                TransformRequest transformRequest = StreamTransformTransfer.createTransformRequest(transform,
                         streamInfo);
                 boolean isDelete = managerClient.deleteTransform(transformRequest);
                 if (!isDelete) {
@@ -197,7 +193,7 @@ public class DefaultInlongStreamBuilder extends InlongStreamBuilder {
                 continue;
             }
             TransformRequest transformRequest = requestEntry.getValue();
-            transformRequest.setId(managerClient.createTransform(transformRequest).intValue());
+            transformRequest.setId(managerClient.createTransform(transformRequest));
         }
     }
 
@@ -208,24 +204,26 @@ public class DefaultInlongStreamBuilder extends InlongStreamBuilder {
         final String streamId = streamInfo.getInlongStreamId();
         List<SourceListResponse> sourceListResponses = managerClient.listSources(groupId, streamId);
         List<String> updateSourceNames = Lists.newArrayList();
-        for (SourceListResponse sourceListResponse : sourceListResponses) {
-            final String sourceName = sourceListResponse.getSourceName();
-            final int id = sourceListResponse.getId();
-            if (sourceRequests.get(sourceName) == null) {
-                boolean isDelete = managerClient.deleteSource(id);
-                if (!isDelete) {
-                    throw new RuntimeException(String.format("Delete source=%s failed", sourceListResponse));
+        if (CollectionUtils.isNotEmpty(sourceListResponses)) {
+            for (SourceListResponse sourceListResponse : sourceListResponses) {
+                final String sourceName = sourceListResponse.getSourceName();
+                final int id = sourceListResponse.getId();
+                if (sourceRequests.get(sourceName) == null) {
+                    boolean isDelete = managerClient.deleteSource(id);
+                    if (!isDelete) {
+                        throw new RuntimeException(String.format("Delete source failed by id=%s", id));
+                    }
+                } else {
+                    SourceRequest sourceRequest = sourceRequests.get(sourceName);
+                    sourceRequest.setId(id);
+                    Pair<Boolean, String> updateState = managerClient.updateSource(sourceRequest);
+                    if (!updateState.getKey()) {
+                        throw new RuntimeException(String.format("Update source=%s failed with err=%s", sourceRequest,
+                                updateState.getValue()));
+                    }
+                    updateSourceNames.add(sourceName);
+                    sourceRequest.setId(sourceListResponse.getId());
                 }
-            } else {
-                SourceRequest sourceRequest = sourceRequests.get(sourceName);
-                sourceRequest.setId(id);
-                Pair<Boolean, String> updateState = managerClient.updateSource(sourceRequest);
-                if (!updateState.getKey()) {
-                    throw new RuntimeException(String.format("Update source=%s failed with err=%s", sourceRequest,
-                            updateState.getValue()));
-                }
-                updateSourceNames.add(sourceName);
-                sourceRequest.setId(sourceListResponse.getId());
             }
         }
         for (Map.Entry<String, SourceRequest> requestEntry : sourceRequests.entrySet()) {
@@ -234,7 +232,7 @@ public class DefaultInlongStreamBuilder extends InlongStreamBuilder {
                 continue;
             }
             SourceRequest sourceRequest = requestEntry.getValue();
-            sourceRequest.setId(managerClient.createSource(sourceRequest).intValue());
+            sourceRequest.setId(managerClient.createSource(sourceRequest));
         }
     }
 
@@ -271,7 +269,7 @@ public class DefaultInlongStreamBuilder extends InlongStreamBuilder {
                 continue;
             }
             SinkRequest sinkRequest = requestEntry.getValue();
-            sinkRequest.setId(managerClient.createSink(sinkRequest).intValue());
+            sinkRequest.setId(managerClient.createSink(sinkRequest));
         }
     }
 }

@@ -23,7 +23,7 @@ import org.apache.inlong.manager.common.enums.GroupStatus;
 import org.apache.inlong.manager.common.exceptions.BusinessException;
 import org.apache.inlong.manager.common.pojo.group.InlongGroupInfo;
 import org.apache.inlong.manager.common.pojo.workflow.form.GroupResourceProcessForm;
-import org.apache.inlong.manager.service.core.InlongGroupService;
+import org.apache.inlong.manager.service.group.InlongGroupService;
 import org.apache.inlong.manager.workflow.WorkflowContext;
 import org.apache.inlong.manager.workflow.event.ListenerResult;
 import org.apache.inlong.manager.workflow.event.process.ProcessEvent;
@@ -50,7 +50,7 @@ public class GroupUpdateListener implements ProcessEventListener {
         GroupResourceProcessForm form = (GroupResourceProcessForm) context.getProcessForm();
         InlongGroupInfo groupInfo = groupService.get(context.getProcessForm().getInlongGroupId());
         GroupOperateType groupOperateType = form.getGroupOperateType();
-        String username = context.getApplicant();
+        String username = context.getOperator();
         if (groupInfo != null) {
             switch (groupOperateType) {
                 case SUSPEND:

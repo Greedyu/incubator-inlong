@@ -53,8 +53,7 @@ public class InlongStreamResponse {
     @ApiModelProperty(value = "Inlong stream description")
     private String description;
 
-    @ApiModelProperty(value = "MQ resource, in inlong group",
-            notes = "Tube corresponds to Topic, Pulsar corresponds to Namespace")
+    @ApiModelProperty(value = "MQ resource")
     private String mqResource;
 
     @ApiModelProperty(value = "Data type, including: TEXT, KV, etc.")
@@ -102,8 +101,10 @@ public class InlongStreamResponse {
     @Builder.Default
     private Integer isDeleted = 0;
 
+    @ApiModelProperty(value = "Name of creator")
     private String creator;
 
+    @ApiModelProperty(value = "Name of modifier")
     private String modifier;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
@@ -113,6 +114,9 @@ public class InlongStreamResponse {
     private Date modifyTime;
 
     @ApiModelProperty(value = "Field list")
-    private List<InlongStreamFieldInfo> fieldList;
+    private List<StreamField> fieldList;
+
+    @ApiModelProperty(value = "Inlong stream Extension properties")
+    private List<InlongStreamExtInfo> extList;
 
 }

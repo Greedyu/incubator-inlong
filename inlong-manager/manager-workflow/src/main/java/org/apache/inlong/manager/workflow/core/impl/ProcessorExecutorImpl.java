@@ -21,61 +21,53 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.inlong.manager.common.exceptions.WorkflowException;
-import org.apache.inlong.manager.common.exceptions.WorkflowNoRollbackException;
-import org.apache.inlong.manager.common.exceptions.WorkflowRollbackOnceException;
-import org.apache.inlong.manager.dao.mapper.WorkflowProcessEntityMapper;
-import org.apache.inlong.manager.dao.mapper.WorkflowTaskEntityMapper;
 import org.apache.inlong.manager.workflow.WorkflowContext;
 import org.apache.inlong.manager.workflow.core.ProcessorExecutor;
-import org.apache.inlong.manager.workflow.core.TransactionHelper;
 import org.apache.inlong.manager.workflow.definition.Element;
 import org.apache.inlong.manager.workflow.definition.NextableElement;
 import org.apache.inlong.manager.workflow.definition.SkippableElement;
-import org.apache.inlong.manager.workflow.definition.WorkflowTask;
 import org.apache.inlong.manager.workflow.processor.ElementProcessor;
 import org.apache.inlong.manager.workflow.processor.EndEventProcessor;
 import org.apache.inlong.manager.workflow.processor.ServiceTaskProcessor;
 import org.apache.inlong.manager.workflow.processor.SkipableElementProcessor;
 import org.apache.inlong.manager.workflow.processor.StartEventProcessor;
 import org.apache.inlong.manager.workflow.processor.UserTaskProcessor;
-import org.springframework.transaction.TransactionDefinition;
-import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
 import java.util.List;
 
 /**
  * Workload component processor execution
  */
 @Slf4j
+@Service
 public class ProcessorExecutorImpl implements ProcessorExecutor {
 
-    private final ImmutableMap<Class<? extends Element>, ElementProcessor<? extends Element>> elementProcessor;
+    private ImmutableMap<Class<? extends Element>, ElementProcessor<? extends Element>> elementProcessor;
 
-    private final TransactionHelper transactionHelper;
+    @Autowired
+    private StartEventProcessor startEventProcessor;
+    @Autowired
+    private EndEventProcessor endEventProcessor;
+    @Autowired
+    private UserTaskProcessor userTaskProcessor;
+    @Autowired
+    private ServiceTaskProcessor serviceTaskProcessor;
 
-    public ProcessorExecutorImpl(
-            WorkflowProcessEntityMapper processEntityMapper,
-            WorkflowTaskEntityMapper taskEntityMapper,
-            WorkflowEventNotifier workflowEventNotifier,
-            TransactionHelper transactionHelper) {
+    @PostConstruct
+    private void initProcessors() {
+        List<ElementProcessor<?>> processors = Lists.newArrayList();
+        processors.add(startEventProcessor);
+        processors.add(endEventProcessor);
+        processors.add(userTaskProcessor);
+        processors.add(serviceTaskProcessor);
 
-        List<ElementProcessor<? extends Element>> processors = initProcessors(processEntityMapper,
-                taskEntityMapper, workflowEventNotifier);
         ImmutableMap.Builder<Class<? extends Element>, ElementProcessor<? extends Element>> builder
                 = ImmutableMap.builder();
         processors.forEach(processor -> builder.put(processor.watch(), processor));
         elementProcessor = builder.build();
-        this.transactionHelper = transactionHelper;
-    }
-
-    private List<ElementProcessor<?>> initProcessors(WorkflowProcessEntityMapper processEntityMapper,
-            WorkflowTaskEntityMapper taskEntityMapper, WorkflowEventNotifier eventNotifier) {
-        List<ElementProcessor<?>> processors = Lists.newArrayList();
-        processors.add(new StartEventProcessor(processEntityMapper, eventNotifier));
-        processors.add(new EndEventProcessor(processEntityMapper, taskEntityMapper, eventNotifier));
-        processors.add(new UserTaskProcessor(taskEntityMapper, eventNotifier));
-        processors.add(new ServiceTaskProcessor(taskEntityMapper, eventNotifier));
-        return processors;
     }
 
     private ElementProcessor<? extends Element> getProcessor(Class<? extends Element> elementClazz) {
@@ -98,15 +90,6 @@ public class ProcessorExecutorImpl implements ProcessorExecutor {
 
         processor.create(element, context);
         if (processor.pendingForAction(context)) {
-            return;
-        }
-
-        // If it is a continuous task execution transaction isolation
-        if (element instanceof WorkflowTask) {
-            TransactionCallback<Object> callback = executeCompleteInTransaction(element, context);
-            if (callback != null) {
-                transactionHelper.execute(callback, TransactionDefinition.PROPAGATION_NESTED);
-            }
             return;
         }
 
@@ -156,17 +139,6 @@ public class ProcessorExecutorImpl implements ProcessorExecutor {
         List<Element> nextElements = processor.next(element, context);
         for (Element next : nextElements) {
             executeStart(next, context);
-        }
-    }
-
-    private TransactionCallback<Object> executeCompleteInTransaction(Element element, WorkflowContext context) {
-        try {
-            executeComplete(element, context);
-            return null;
-        } catch (WorkflowNoRollbackException e) { // Exception does not roll back
-            throw e;
-        } catch (Exception e) { // The exception is only rolled back once
-            throw new WorkflowRollbackOnceException(e.getMessage());
         }
     }
 

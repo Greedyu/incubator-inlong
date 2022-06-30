@@ -25,7 +25,7 @@ import org.apache.inlong.manager.common.pojo.stream.InlongStreamApproveRequest;
 import org.apache.inlong.manager.common.pojo.workflow.form.InlongGroupApproveForm;
 import org.apache.inlong.manager.dao.entity.InlongGroupEntity;
 import org.apache.inlong.manager.dao.mapper.InlongGroupEntityMapper;
-import org.apache.inlong.manager.service.core.InlongGroupService;
+import org.apache.inlong.manager.service.group.InlongGroupService;
 import org.apache.inlong.manager.service.core.InlongStreamService;
 import org.apache.inlong.manager.workflow.WorkflowContext;
 import org.apache.inlong.manager.workflow.event.ListenerResult;
@@ -73,11 +73,11 @@ public class GroupAfterApprovedListener implements TaskEventListener {
         }
 
         // Save the inlong group information after approval
-        groupService.updateAfterApprove(approveInfo, context.getApplicant());
+        groupService.updateAfterApprove(approveInfo, context.getOperator());
 
         // Save inlong stream information after approval
         List<InlongStreamApproveRequest> streamApproveInfoList = form.getStreamApproveInfoList();
-        streamService.updateAfterApprove(streamApproveInfoList, context.getApplicant());
+        streamService.updateAfterApprove(streamApproveInfoList, context.getOperator());
         return ListenerResult.success();
     }
 

@@ -88,7 +88,7 @@ public class UserServiceImpl implements UserService {
         entity.setAccountType(userInfo.getType());
         entity.setPassword(SmallTools.passwordMd5(userInfo.getPassword()));
         entity.setDueDate(getOverDueDate(userInfo.getValidDays()));
-        entity.setCreateBy(LoginUserUtils.getLoginUserDetail().getUserName());
+        entity.setCreateBy(LoginUserUtils.getLoginUserDetail().getUsername());
         entity.setName(username);
         entity.setCreateTime(new Date());
         Preconditions.checkTrue(userMapper.insert(entity) > 0, "Create user failed");
@@ -104,7 +104,7 @@ public class UserServiceImpl implements UserService {
 
         // Whether the current user is an administrator
         UserEntity currentUserEntity = getByName(currentUser);
-        Preconditions.checkTrue(currentUserEntity.getAccountType().equals(UserTypeEnum.Admin.getCode()),
+        Preconditions.checkTrue(currentUserEntity.getAccountType().equals(UserTypeEnum.ADMIN.getCode()),
                 "The current user is not a manager and does not have permission to update users");
 
         UserEntity entity = userMapper.selectByPrimaryKey(userInfo.getId());
@@ -142,7 +142,7 @@ public class UserServiceImpl implements UserService {
 
         // Whether the current user is an administrator
         UserEntity entity = getByName(currentUser);
-        Preconditions.checkTrue(entity.getAccountType().equals(UserTypeEnum.Admin.getCode()),
+        Preconditions.checkTrue(entity.getAccountType().equals(UserTypeEnum.ADMIN.getCode()),
                 "The current user is not a manager and does not have permission to delete users");
 
         userMapper.deleteByPrimaryKey(userId);
@@ -155,8 +155,8 @@ public class UserServiceImpl implements UserService {
         PageHelper.startPage(request.getPageNum(), request.getPageSize());
         UserEntityExample example = new UserEntityExample();
         Criteria criteria = example.createCriteria();
-        if (request.getUserName() != null) {
-            criteria.andNameLike(request.getUserName() + "%");
+        if (request.getUsername() != null) {
+            criteria.andNameLike(request.getUsername() + "%");
         }
 
         Page<UserEntity> entityPage = (Page<UserEntity>) userMapper.selectByExample(example);

@@ -20,9 +20,15 @@ package org.apache.inlong.manager.common.pojo.stream;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.apache.inlong.manager.common.pojo.sink.StreamSink;
+import org.apache.inlong.manager.common.pojo.source.StreamSource;
 import org.apache.inlong.manager.common.util.CommonBeanUtils;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -30,6 +36,9 @@ import java.util.List;
  * Inlong stream info
  */
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @ApiModel("Inlong stream info")
 public class InlongStreamInfo {
 
@@ -48,8 +57,8 @@ public class InlongStreamInfo {
     @ApiModelProperty(value = "Inlong stream description")
     private String description;
 
-    @ApiModelProperty(value = "MQ resource, in inlong group",
-            notes = "Tube corresponds to Topic, Pulsar corresponds to Namespace")
+    @ApiModelProperty(value = "MQ resource for inlong stream. Default: ${inlongStreamId}",
+            notes = "in inlong stream, Tube corresponds to filter consumption ID, Pulsar corresponds to Topic")
     private String mqResource;
 
     @ApiModelProperty(value = "Data type, including: TEXT, KV, etc.")
@@ -67,7 +76,7 @@ public class InlongStreamInfo {
     @ApiModelProperty(value = "Whether to send synchronously, 0: no, 1: yes",
             notes = "Each task under this stream sends data synchronously, "
                     + "which will affect the throughput of data collection, please choose carefully")
-    private Integer syncSend;
+    private Integer syncSend = 0;
 
     @ApiModelProperty(value = "Number of access items per day, unit: 10,000 items per day")
     private Integer dailyRecords;
@@ -96,8 +105,10 @@ public class InlongStreamInfo {
     @ApiModelProperty(value = "is deleted? 0: deleted, 1: not deleted")
     private Integer isDeleted = 0;
 
+    @ApiModelProperty(value = "Name of creator")
     private String creator;
 
+    @ApiModelProperty(value = "Name of modifier")
     private String modifier;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
@@ -107,10 +118,22 @@ public class InlongStreamInfo {
     private Date modifyTime;
 
     @ApiModelProperty(value = "Field list")
-    private List<InlongStreamFieldInfo> fieldList;
+    private List<StreamField> fieldList;
+
+    @ApiModelProperty(value = "Inlong stream Extension properties")
+    private List<InlongStreamExtInfo> extList;
+
+    @ApiModelProperty("Stream source infos")
+    private List<? extends StreamSource> sourceList = new ArrayList<>();
+
+    @ApiModelProperty("Stream sink infos")
+    private List<? extends StreamSink> sinkList = new ArrayList<>();
 
     public InlongStreamResponse genResponse() {
         return CommonBeanUtils.copyProperties(this, InlongStreamResponse::new);
     }
 
+    public InlongStreamRequest genRequest() {
+        return CommonBeanUtils.copyProperties(this, InlongStreamRequest::new);
+    }
 }

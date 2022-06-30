@@ -17,17 +17,21 @@
 
 package org.apache.inlong.manager.workflow.processor;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableSet;
+import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.inlong.manager.common.enums.TaskStatus;
-import org.apache.inlong.manager.common.util.JsonUtils;
+import org.apache.inlong.manager.common.exceptions.JsonException;
 import org.apache.inlong.manager.common.util.Preconditions;
 import org.apache.inlong.manager.dao.entity.WorkflowProcessEntity;
 import org.apache.inlong.manager.dao.entity.WorkflowTaskEntity;
 import org.apache.inlong.manager.dao.mapper.WorkflowTaskEntityMapper;
 import org.apache.inlong.manager.workflow.WorkflowAction;
 import org.apache.inlong.manager.workflow.WorkflowContext;
-import org.apache.inlong.manager.workflow.core.impl.WorkflowEventNotifier;
+import org.apache.inlong.manager.workflow.WorkflowContext.ActionContext;
 import org.apache.inlong.manager.workflow.definition.ApproverAssign;
 import org.apache.inlong.manager.workflow.definition.ServiceTask;
 import org.apache.inlong.manager.workflow.definition.WorkflowTask;
@@ -35,6 +39,8 @@ import org.apache.inlong.manager.workflow.event.process.ProcessEvent;
 import org.apache.inlong.manager.workflow.event.process.ProcessEventNotifier;
 import org.apache.inlong.manager.workflow.event.task.TaskEvent;
 import org.apache.inlong.manager.workflow.event.task.TaskEventNotifier;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import java.util.Date;
 import java.util.List;
@@ -43,6 +49,9 @@ import java.util.Set;
 /**
  * System task processor
  */
+@Service
+@NoArgsConstructor
+@Slf4j
 public class ServiceTaskProcessor extends AbstractTaskProcessor<ServiceTask> {
 
     private static final Set<WorkflowAction> SUPPORT_ACTIONS = ImmutableSet.of(
@@ -53,14 +62,14 @@ public class ServiceTaskProcessor extends AbstractTaskProcessor<ServiceTask> {
             TaskStatus.PENDING, TaskStatus.FAILED
     );
 
-    private final TaskEventNotifier taskEventNotifier;
-    private final ProcessEventNotifier processEventNotifier;
-
-    public ServiceTaskProcessor(WorkflowTaskEntityMapper taskEntityMapper, WorkflowEventNotifier eventNotifier) {
-        super(taskEntityMapper);
-        this.taskEventNotifier = eventNotifier.getTaskEventNotifier();
-        this.processEventNotifier = eventNotifier.getProcessEventNotifier();
-    }
+    @Autowired
+    private ObjectMapper objectMapper;
+    @Autowired
+    private WorkflowTaskEntityMapper taskEntityMapper;
+    @Autowired
+    private TaskEventNotifier taskEventNotifier;
+    @Autowired
+    private ProcessEventNotifier processEventNotifier;
 
     @Override
     public Class<ServiceTask> watch() {
@@ -71,27 +80,29 @@ public class ServiceTaskProcessor extends AbstractTaskProcessor<ServiceTask> {
     public void create(ServiceTask serviceTask, WorkflowContext context) {
         WorkflowTaskEntity workflowTaskEntity = saveTaskEntity(serviceTask, context);
         context.getNewTaskList().add(workflowTaskEntity);
-        serviceTask.initListeners(context);
-        this.taskEventNotifier.notify(TaskEvent.CREATE, context);
+        try {
+            serviceTask.initListeners(context);
+            this.taskEventNotifier.notify(TaskEvent.CREATE, context);
+        } catch (Exception e) {
+            log.error("Create service task failed", e);
+            ActionContext actionContext = new WorkflowContext.ActionContext()
+                    .setTask((WorkflowTask) context.getCurrentElement())
+                    .setRemark("failed when create");
+            completeTaskEntity(actionContext, workflowTaskEntity, TaskStatus.FAILED);
+            this.taskEventNotifier.notify(TaskEvent.FAIL, context);
+            this.processEventNotifier.notify(ProcessEvent.FAIL, context);
+        }
     }
 
     @Override
     public boolean pendingForAction(WorkflowContext context) {
-        context.setActionContext(
-                new WorkflowContext.ActionContext()
-                        .setTask((WorkflowTask) context.getCurrentElement())
-                        .setAction(WorkflowAction.COMPLETE)
-                        .setTaskEntity(context.getNewTaskList().get(0))
-        );
-        context.getNewTaskList().clear();
         return false;
     }
 
     @Override
     public boolean complete(WorkflowContext context) {
+        resetActionContext(context);
         WorkflowContext.ActionContext actionContext = context.getActionContext();
-        Preconditions.checkTrue(SUPPORT_ACTIONS.contains(actionContext.getAction()),
-                "serviceTask not support action: " + actionContext.getAction());
         WorkflowTaskEntity workflowTaskEntity = actionContext.getTaskEntity();
         Preconditions.checkTrue(ALLOW_COMPLETE_STATE.contains(TaskStatus.valueOf(workflowTaskEntity.getStatus())),
                 "task status should allow complete");
@@ -101,11 +112,26 @@ public class ServiceTaskProcessor extends AbstractTaskProcessor<ServiceTask> {
             completeTaskEntity(actionContext, workflowTaskEntity, TaskStatus.COMPLETED);
             return true;
         } catch (Exception e) {
+            log.error("Complete service task failed", e);
             completeTaskEntity(actionContext, workflowTaskEntity, TaskStatus.FAILED);
             this.taskEventNotifier.notify(TaskEvent.FAIL, context);
             this.processEventNotifier.notify(ProcessEvent.FAIL, context);
             return false;
         }
+    }
+
+    private void resetActionContext(WorkflowContext context) {
+        if (CollectionUtils.isEmpty(context.getNewTaskList())) {
+            // independent complete request when the action context is already built
+            return;
+        }
+        context.setActionContext(
+                new WorkflowContext.ActionContext()
+                        .setTask((WorkflowTask) context.getCurrentElement())
+                        .setAction(WorkflowAction.COMPLETE)
+                        .setTaskEntity(context.getNewTaskList().get(0))
+        );
+        context.getNewTaskList().clear();
     }
 
     private WorkflowTaskEntity saveTaskEntity(ServiceTask serviceTask, WorkflowContext context) {
@@ -128,12 +154,17 @@ public class ServiceTaskProcessor extends AbstractTaskProcessor<ServiceTask> {
         return taskEntity;
     }
 
-    private void completeTaskEntity(WorkflowContext.ActionContext actionContext, WorkflowTaskEntity taskEntity,
-            TaskStatus taskStatus) {
+    private void completeTaskEntity(ActionContext actionContext, WorkflowTaskEntity taskEntity, TaskStatus taskStatus) {
         taskEntity.setStatus(taskStatus.name());
         taskEntity.setOperator(taskEntity.getApprovers());
         taskEntity.setRemark(actionContext.getRemark());
-        taskEntity.setFormData(JsonUtils.toJson(actionContext.getForm()));
+        try {
+            if (actionContext.getForm() != null) {
+                taskEntity.setFormData(objectMapper.writeValueAsString(actionContext.getForm()));
+            }
+        } catch (Exception e) {
+            throw new JsonException("write form to json error: ", e);
+        }
         taskEntity.setEndTime(new Date());
         taskEntityMapper.update(taskEntity);
     }

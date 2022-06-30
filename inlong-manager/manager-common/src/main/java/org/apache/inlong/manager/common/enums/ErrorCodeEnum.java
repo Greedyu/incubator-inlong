@@ -33,6 +33,7 @@ public enum ErrorCodeEnum {
 
     GROUP_NOT_FOUND(1001, "Inlong group does not exist/no operation authority"),
     GROUP_DUPLICATE(1002, "Inlong group already exists"),
+    GROUP_INFO_INCORRECT(1003, "Group info was incorrect"),
     GROUP_SAVE_FAILED(1003, "Failed to save/update inlong group information"),
     GROUP_PERMISSION_DENIED(1004, "No access to this inlong group"),
     GROUP_HAS_STREAM(1005, "There are some valid inlong stream for this inlong group"),
@@ -48,9 +49,11 @@ public enum ErrorCodeEnum {
     OPT_NOT_ALLOWED_BY_STATUS(1021,
             "The current inlong group status does not allow adding/modifying/deleting related info"),
 
-    MQ_TYPE_NOT_SUPPORTED(1021, "MQ_TYPE_NOT_SUPPORTED"),
+    MQ_TYPE_NOT_SUPPORTED(1022, "MQ type '%s' not supported"),
+    MQ_TYPE_NOT_SAME(1023, "Expected MQ type is '%s', but found '%s'"),
 
     CLUSTER_NOT_FOUND(1101, "Cluster information does not exist"),
+    CLUSTER_TYPE_NOT_SUPPORTED(1102, "Cluster type '%s' not supported"),
 
     STREAM_NOT_FOUND(1201, "Inlong stream does not exist/no operation permission"),
     STREAM_ID_DUPLICATE(1202, "The current inlong group has a inlong stream with the same ID"),
@@ -110,8 +113,6 @@ public enum ErrorCodeEnum {
     PULSAR_DLQ_DUPLICATED(2607, "DLQ topic already exists under the inlong group"),
     PULSAR_RLQ_DUPLICATED(2608, "RLQ topic already exists under the inlong group"),
 
-    COMMON_FILE_DOWNLOAD_FAIL(6001, "File download failed"),
-    COMMON_FILE_UPLOAD_FAIL(6002, "File upload failed"),
     ;
 
     private final int code;

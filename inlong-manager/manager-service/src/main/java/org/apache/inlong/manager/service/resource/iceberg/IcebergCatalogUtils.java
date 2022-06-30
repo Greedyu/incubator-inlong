@@ -17,6 +17,7 @@
 
 package org.apache.inlong.manager.service.resource.iceberg;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
@@ -28,10 +29,10 @@ import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.hive.HiveCatalog;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.types.Types.NestedField;
-import org.apache.inlong.manager.common.enums.IcebergPartition;
-import org.apache.inlong.manager.common.enums.IcebergType;
 import org.apache.inlong.manager.common.pojo.sink.iceberg.IcebergColumnInfo;
+import org.apache.inlong.manager.common.pojo.sink.iceberg.IcebergPartition;
 import org.apache.inlong.manager.common.pojo.sink.iceberg.IcebergTableInfo;
+import org.apache.inlong.manager.common.pojo.sink.iceberg.IcebergType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,7 +58,7 @@ public class IcebergCatalogUtils {
         HiveCatalog catalog = new HiveCatalog();
         Map<String, String> properties = new HashMap<>();
         properties.put(CATALOG_PROP_URI, metastoreUri);
-        if (!warehouse.isEmpty()) {
+        if (StringUtils.isNotEmpty(warehouse)) {
             properties.put(CATALOG_PROP_WAREHOUSE, warehouse);
         }
         catalog.initialize("hive", properties);
@@ -147,6 +148,7 @@ public class IcebergCatalogUtils {
             IcebergColumnInfo info = new IcebergColumnInfo();
             info.setName(column.name());
             info.setRequired(column.isRequired());
+            columnList.add(info);
         }
         return columnList;
     }
@@ -193,7 +195,7 @@ public class IcebergCatalogUtils {
      * Build iceberg table column schema
      */
     private static void buildColumnSpec(IcebergColumnInfo column, PartitionSpec.Builder builder) {
-        if (column.getPartitionStrategy().isEmpty()) {
+        if (StringUtils.isEmpty(column.getPartitionStrategy())) {
             return;
         }
         switch (IcebergPartition.forName(column.getPartitionStrategy())) {
@@ -218,6 +220,8 @@ public class IcebergCatalogUtils {
             case HOUR:
                 builder.hour(column.getName());
                 break;
+            case NONE:
+                break;
             default:
                 throw new IllegalArgumentException(
                         "unknown iceberg partition strategy: " + column.getPartitionStrategy());
@@ -226,11 +230,11 @@ public class IcebergCatalogUtils {
 
     /**
      * Update iceberg table column schema.
-     * It's unfortunate that the updating api is different from the creating api so the column type switch is
+     * It's unfortunate that the updating api is different from the creating api so the partition type switch is
      * repeated here.
      */
     private static void updateColumnSpec(IcebergColumnInfo column, UpdatePartitionSpec builder) {
-        if (column.getPartitionStrategy().isEmpty()) {
+        if (StringUtils.isEmpty(column.getPartitionStrategy())) {
             return;
         }
         switch (IcebergPartition.forName(column.getPartitionStrategy())) {
@@ -254,6 +258,8 @@ public class IcebergCatalogUtils {
                 break;
             case HOUR:
                 builder.addField(Expressions.hour(column.getName()));
+                break;
+            case NONE:
                 break;
             default:
                 throw new IllegalArgumentException(

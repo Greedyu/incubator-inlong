@@ -17,14 +17,21 @@
 
 package org.apache.inlong.manager.common.pojo.group;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.inlong.manager.common.exceptions.BusinessException;
+import org.apache.inlong.manager.common.util.SmallTools;
+import org.hibernate.validator.constraints.Length;
 
-import javax.validation.constraints.NotNull;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.Pattern;
 import java.util.List;
 
 /**
@@ -35,9 +42,14 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @ApiModel("Inlong group create request")
+@JsonTypeInfo(use = Id.NAME, visible = true, property = "mqType")
 public class InlongGroupRequest {
 
     @ApiModelProperty(value = "Inlong group id", required = true)
+    @Length(min = 4, max = 200)
+    @Pattern(regexp = "^(?![0-9]+$)[a-z][a-z0-9_-]{1,200}$",
+            message = "inlongGroupId must starts with a lowercase letter "
+                    + "and contains only lowercase letters, digits, `-` or `_`")
     private String inlongGroupId;
 
     @ApiModelProperty(value = "Inlong group name", required = true)
@@ -46,31 +58,20 @@ public class InlongGroupRequest {
     @ApiModelProperty(value = "Inlong group description")
     private String description;
 
-    @NotNull(message = "mqType cannot be null")
+    @Deprecated
+    @ApiModelProperty(value = "MQ type, replaced by mqType")
+    private String middlewareType;
+
+    @NotBlank
     @ApiModelProperty(value = "MQ type, high throughput: TUBE, high consistency: PULSAR")
     private String mqType;
 
-    @ApiModelProperty(value = "Queue model of Pulsar, parallel: multiple partitions, high throughput, out-of-order "
-            + "messages; serial: single partition, low throughput, and orderly messages")
-    @Builder.Default
-    private String queueModule = "parallel";
-
-    @ApiModelProperty(value = "The number of partitions of Pulsar Topic, 1-20")
-    @Builder.Default
-    private Integer topicPartitionNum = 3;
-
-    @ApiModelProperty(value = "MQ resource, in inlong group",
-            notes = "Tube corresponds to Topic, Pulsar corresponds to Namespace")
+    @ApiModelProperty(value = "MQ resource",
+            notes = "in inlong group, Tube corresponds to Topic, Pulsar corresponds to Namespace")
     private String mqResource;
 
     @ApiModelProperty(value = "Tube master URL")
     private String tubeMaster;
-
-    @ApiModelProperty(value = "Pulsar admin URL")
-    private String pulsarAdminUrl;
-
-    @ApiModelProperty(value = "Pulsar service URL")
-    private String pulsarServiceUrl;
 
     @ApiModelProperty(value = "Whether to enable zookeeper? 0: disable, 1: enable")
     @Builder.Default
@@ -82,13 +83,10 @@ public class InlongGroupRequest {
 
     @ApiModelProperty(value = "Whether to use lightweight mode, 0: false, 1: true")
     @Builder.Default
-    private Integer lightweight = 1;
+    private Integer lightweight = 0;
 
     @ApiModelProperty(value = "Inlong cluster tag, which links to inlong_cluster table")
     private String inlongClusterTag;
-
-    @ApiModelProperty(value = "Extended params, will be saved as JSON string, such as queue_module, partition_num")
-    private String extParams;
 
     @ApiModelProperty(value = "Number of access items per day, unit: 10,000 items per day")
     private Integer dailyRecords;
@@ -103,6 +101,7 @@ public class InlongGroupRequest {
     private Integer maxLength;
 
     @ApiModelProperty(value = "Name of responsible person, separated by commas")
+    @NotBlank
     private String inCharges;
 
     @ApiModelProperty(value = "Name of followers, separated by commas")
@@ -114,7 +113,30 @@ public class InlongGroupRequest {
     @ApiModelProperty(value = "Inlong group Extension properties")
     private List<InlongGroupExtInfo> extList;
 
-    @ApiModelProperty(value = "The extension info for MQ")
-    private InlongGroupMqExtBase mqExtInfo;
+    /**
+     * Check the validation of request params
+     */
+    public void checkParams() {
+        if (StringUtils.isBlank(inlongGroupId)) {
+            throw new BusinessException("inlongGroupId cannot be null");
+        }
+
+        if (inlongGroupId.length() < 4 || inlongGroupId.length() > 200) {
+            throw new BusinessException("characters for inlongGroupId must be more than 4 and less than 200");
+        }
+
+        if (!SmallTools.isLowerOrNum(inlongGroupId)) {
+            throw new BusinessException("inlongGroupId must starts with a lowercase letter "
+                    + "and contains only lowercase letters, digits, `-` or `_`");
+        }
+
+        if (StringUtils.isBlank(mqType)) {
+            throw new BusinessException("mqType cannot be null");
+        }
+
+        if (StringUtils.isBlank(inCharges)) {
+            throw new BusinessException("inCharges cannot be null");
+        }
+    }
 
 }
