@@ -28,7 +28,7 @@ import org.apache.inlong.manager.client.api.ClientConfiguration;
 import org.apache.inlong.manager.client.api.impl.InlongClientImpl;
 import org.apache.inlong.manager.common.auth.DefaultAuthentication;
 import org.apache.inlong.manager.common.beans.Response;
-import org.apache.inlong.manager.common.pojo.cluster.InlongClusterRequest;
+import org.apache.inlong.manager.common.pojo.cluster.ClusterRequest;
 import org.apache.inlong.manager.common.pojo.group.InlongGroupExtInfo;
 import org.apache.inlong.manager.common.pojo.group.InlongGroupInfo;
 import org.apache.inlong.manager.common.pojo.group.InlongGroupListResponse;
@@ -646,9 +646,8 @@ class InnerInlongManagerClientTest {
                         )
         );
 
-        RuntimeException exception = Assertions.assertThrows(IllegalStateException.class,
+        RuntimeException exception = Assertions.assertThrows(IllegalArgumentException.class,
                 () -> innerInlongManagerClient.listSinks("", "11"));
-
         Assertions.assertTrue(exception.getMessage().contains("groupId should not empty"));
     }
 
@@ -677,7 +676,7 @@ class InnerInlongManagerClientTest {
                                 )
                         )
         );
-        InlongClusterRequest request = new InlongClusterRequest();
+        ClusterRequest request = new ClusterRequest();
         request.setName("pulsar");
         request.setType("PULSAR");
         request.setClusterTags("test_cluster");

@@ -22,13 +22,13 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.inlong.manager.common.consts.InlongConstants;
 import org.apache.inlong.manager.common.enums.ClusterType;
 import org.apache.inlong.manager.common.exceptions.WorkflowListenerException;
-import org.apache.inlong.manager.common.pojo.cluster.InlongClusterInfo;
+import org.apache.inlong.manager.common.pojo.cluster.ClusterInfo;
 import org.apache.inlong.manager.common.pojo.cluster.pulsar.PulsarClusterInfo;
 import org.apache.inlong.manager.common.pojo.group.InlongGroupInfo;
 import org.apache.inlong.manager.common.pojo.group.pulsar.InlongPulsarInfo;
 import org.apache.inlong.manager.common.pojo.pulsar.PulsarTopicBean;
 import org.apache.inlong.manager.common.pojo.stream.InlongStreamInfo;
-import org.apache.inlong.manager.common.pojo.workflow.form.StreamResourceProcessForm;
+import org.apache.inlong.manager.common.pojo.workflow.form.process.StreamResourceProcessForm;
 import org.apache.inlong.manager.service.cluster.InlongClusterService;
 import org.apache.inlong.manager.service.mq.util.PulsarOperator;
 import org.apache.inlong.manager.service.mq.util.PulsarUtils;
@@ -70,7 +70,7 @@ public class DeletePulsarTopicTaskListener implements QueueOperateListener {
             InlongPulsarInfo pulsarInfo = (InlongPulsarInfo) groupInfo;
             String pulsarTopic = streamInfo.getMqResource();
             String clusterTag = pulsarInfo.getInlongClusterTag();
-            InlongClusterInfo clusterInfo = clusterService.getOne(clusterTag, null, ClusterType.CLS_PULSAR);
+            ClusterInfo clusterInfo = clusterService.getOne(clusterTag, null, ClusterType.PULSAR);
             PulsarClusterInfo pulsarCluster = (PulsarClusterInfo) clusterInfo;
             String tenant = pulsarCluster.getTenant();
             if (StringUtils.isEmpty(tenant)) {
@@ -95,8 +95,4 @@ public class DeletePulsarTopicTaskListener implements QueueOperateListener {
         return ListenerResult.success();
     }
 
-    @Override
-    public boolean async() {
-        return false;
-    }
 }

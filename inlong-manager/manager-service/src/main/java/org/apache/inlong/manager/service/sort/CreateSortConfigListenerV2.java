@@ -19,6 +19,7 @@ package org.apache.inlong.manager.service.sort;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,7 +30,7 @@ import org.apache.inlong.manager.common.enums.GroupOperateType;
 import org.apache.inlong.manager.common.enums.MQType;
 import org.apache.inlong.manager.common.enums.SourceType;
 import org.apache.inlong.manager.common.exceptions.WorkflowListenerException;
-import org.apache.inlong.manager.common.pojo.cluster.InlongClusterInfo;
+import org.apache.inlong.manager.common.pojo.cluster.ClusterInfo;
 import org.apache.inlong.manager.common.pojo.cluster.pulsar.PulsarClusterInfo;
 import org.apache.inlong.manager.common.pojo.group.InlongGroupExtInfo;
 import org.apache.inlong.manager.common.pojo.group.InlongGroupInfo;
@@ -38,7 +39,7 @@ import org.apache.inlong.manager.common.pojo.source.StreamSource;
 import org.apache.inlong.manager.common.pojo.source.kafka.KafkaSource;
 import org.apache.inlong.manager.common.pojo.source.pulsar.PulsarSource;
 import org.apache.inlong.manager.common.pojo.stream.InlongStreamInfo;
-import org.apache.inlong.manager.common.pojo.workflow.form.GroupResourceProcessForm;
+import org.apache.inlong.manager.common.pojo.workflow.form.process.GroupResourceProcessForm;
 import org.apache.inlong.manager.service.cluster.InlongClusterService;
 import org.apache.inlong.manager.service.sink.StreamSinkService;
 import org.apache.inlong.manager.service.sort.util.ExtractNodeUtils;
@@ -80,8 +81,9 @@ public class CreateSortConfigListenerV2 implements SortOperateListener {
         return TaskEvent.COMPLETE;
     }
 
+    @SneakyThrows
     @Override
-    public ListenerResult listen(WorkflowContext context) throws Exception {
+    public ListenerResult listen(WorkflowContext context) {
         log.info("Create sort config V2 for groupId={}", context.getProcessForm().getInlongGroupId());
         GroupResourceProcessForm form = (GroupResourceProcessForm) context.getProcessForm();
         GroupOperateType groupOperateType = form.getGroupOperateType();
@@ -90,19 +92,29 @@ public class CreateSortConfigListenerV2 implements SortOperateListener {
         }
         InlongGroupInfo groupInfo = form.getGroupInfo();
         List<InlongStreamInfo> streamInfos = form.getStreamInfos();
-        final String groupId = groupInfo.getInlongGroupId();
+        int sinkCount = streamInfos.stream()
+                .map(s -> s.getSinkList() == null ? 0 : s.getSinkList().size())
+                .reduce(0, Integer::sum);
+        if (sinkCount == 0) {
+            log.warn("not any sink for group {} found, skip creating sort config", groupInfo.getInlongGroupId());
+            return ListenerResult.success();
+        }
+
         GroupInfo configInfo = createGroupInfo(groupInfo, streamInfos);
         String dataFlows = OBJECT_MAPPER.writeValueAsString(configInfo);
+        addExtInfo(groupInfo, InlongConstants.DATA_FLOW, dataFlows);
+        return ListenerResult.success();
+    }
 
-        InlongGroupExtInfo extInfo = new InlongGroupExtInfo();
-        extInfo.setInlongGroupId(groupId);
-        extInfo.setKeyName(InlongConstants.DATA_FLOW);
-        extInfo.setKeyValue(dataFlows);
+    private void addExtInfo(InlongGroupInfo groupInfo, String key, String value) {
         if (groupInfo.getExtList() == null) {
             groupInfo.setExtList(Lists.newArrayList());
         }
-        upsertDataFlow(groupInfo, extInfo);
-        return ListenerResult.success();
+        InlongGroupExtInfo extInfo = new InlongGroupExtInfo();
+        extInfo.setInlongGroupId(groupInfo.getInlongGroupId());
+        extInfo.setKeyName(key);
+        extInfo.setKeyValue(value);
+        upsertExtInfo(groupInfo, extInfo);
     }
 
     /**
@@ -138,8 +150,8 @@ public class CreateSortConfigListenerV2 implements SortOperateListener {
         }
 
         Map<String, List<StreamSource>> sourceMap = Maps.newHashMap();
-        InlongClusterInfo clusterInfo = clusterService.getOne(groupInfo.getInlongClusterTag(), null,
-                ClusterType.CLS_PULSAR);
+        ClusterInfo clusterInfo = clusterService.getOne(groupInfo.getInlongClusterTag(), null,
+                ClusterType.PULSAR);
 
         PulsarClusterInfo pulsarCluster = (PulsarClusterInfo) clusterInfo;
         String adminUrl = pulsarCluster.getAdminUrl();
@@ -193,13 +205,9 @@ public class CreateSortConfigListenerV2 implements SortOperateListener {
         return Lists.newArrayList(relation);
     }
 
-    private void upsertDataFlow(InlongGroupInfo groupInfo, InlongGroupExtInfo extInfo) {
-        groupInfo.getExtList().removeIf(ext -> InlongConstants.DATA_FLOW.equals(ext.getKeyName()));
+    private void upsertExtInfo(InlongGroupInfo groupInfo, InlongGroupExtInfo extInfo) {
+        groupInfo.getExtList().removeIf(ext -> extInfo.getKeyName().equals(ext.getKeyName()));
         groupInfo.getExtList().add(extInfo);
     }
 
-    @Override
-    public boolean async() {
-        return false;
-    }
 }

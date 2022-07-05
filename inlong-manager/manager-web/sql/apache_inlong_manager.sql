@@ -587,15 +587,19 @@ CREATE TABLE IF NOT EXISTS `stream_sink_field`
 -- ----------------------------
 CREATE TABLE IF NOT EXISTS `user`
 (
-    `id`           int(11)      NOT NULL AUTO_INCREMENT,
-    `name`         varchar(256) NOT NULL COMMENT 'account name',
-    `password`     varchar(64)  NOT NULL COMMENT 'password md5',
-    `account_type` int(11)      NOT NULL DEFAULT '1' COMMENT 'account type, 0-manager 1-normal',
-    `due_date`     datetime              DEFAULT NULL COMMENT 'due date for account',
-    `create_time`  datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Create time',
-    `update_time`  datetime              DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'update time',
-    `create_by`    varchar(256) NOT NULL COMMENT 'create by sb.',
-    `update_by`    varchar(256)          DEFAULT NULL COMMENT 'update by sb.',
+    `id`              int(11)      NOT NULL AUTO_INCREMENT COMMENT 'Incremental primary key',
+    `name`            varchar(256) NOT NULL COMMENT 'Username',
+    `password`        varchar(64)  NOT NULL COMMENT 'Password md5',
+    `secret_key`      varchar(256)          DEFAULT NULL COMMENT 'Auth key for public network access',
+    `public_key`      text                  DEFAULT NULL COMMENT 'Public key for asymmetric data encryption',
+    `private_key`     text                  DEFAULT NULL COMMENT 'Private key for asymmetric data encryption',
+    `encrypt_version` int(11)               DEFAULT NULL COMMENT 'Encryption key version',
+    `account_type`    int(11)      NOT NULL DEFAULT '1' COMMENT 'Account type, 0-manager 1-normal',
+    `due_date`        datetime              DEFAULT NULL COMMENT 'Due date for account',
+    `create_by`       varchar(256) NOT NULL COMMENT 'Creator name',
+    `update_by`       varchar(256)          DEFAULT NULL COMMENT 'Modifier name',
+    `create_time`     datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Create time',
+    `update_time`     datetime              DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Modify time',
     PRIMARY KEY (`id`),
     UNIQUE KEY `unique_user_name` (`name`)
 ) ENGINE = InnoDB
@@ -699,7 +703,8 @@ CREATE TABLE IF NOT EXISTS `workflow_process`
     `end_time`        datetime              DEFAULT NULL COMMENT 'End event',
     `ext_params`      text COMMENT 'Extended information-json',
     `hidden`          tinyint(1)   NOT NULL DEFAULT '0' COMMENT 'Whether to hidden, 0: not hidden, 1: hidden',
-    PRIMARY KEY (`id`)
+    PRIMARY KEY (`id`),
+    INDEX group_status_index (`inlong_group_id`, `status`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='Workflow process table';
 
@@ -725,7 +730,8 @@ CREATE TABLE IF NOT EXISTS `workflow_task`
     `end_time`             datetime      DEFAULT NULL COMMENT 'End time',
     `ext_params`           text COMMENT 'Extended information-json',
     PRIMARY KEY (`id`),
-    INDEX process_status_index (`process_id`, `status`)
+    INDEX process_status_index (`process_id`, `status`),
+    INDEX process_name_index (`process_id`, `name`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='Workflow task table';
 

@@ -18,12 +18,12 @@
 package org.apache.inlong.manager.common.enums;
 
 /**
- * Enum of cluster type.
+ * Constant of cluster type.
  */
 public class ClusterType {
 
-    public static final String CLS_TUBE = "TUBE";
-    public static final String CLS_PULSAR = "PULSAR";
-    public static final String CLS_DATA_PROXY = "DATA_PROXY";
+    public static final String TUBE = "TUBE";
+    public static final String PULSAR = "PULSAR";
+    public static final String DATA_PROXY = "DATA_PROXY";
 
 }

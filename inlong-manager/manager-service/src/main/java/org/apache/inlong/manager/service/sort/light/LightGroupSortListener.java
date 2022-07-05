@@ -27,7 +27,7 @@ import org.apache.inlong.manager.common.pojo.sink.StreamSink;
 import org.apache.inlong.manager.common.pojo.source.StreamSource;
 import org.apache.inlong.manager.common.pojo.stream.InlongStreamInfo;
 import org.apache.inlong.manager.common.pojo.transform.TransformResponse;
-import org.apache.inlong.manager.common.pojo.workflow.form.LightGroupResourceProcessForm;
+import org.apache.inlong.manager.common.pojo.workflow.form.process.LightGroupResourceProcessForm;
 import org.apache.inlong.manager.service.sink.StreamSinkService;
 import org.apache.inlong.manager.service.sort.util.ExtractNodeUtils;
 import org.apache.inlong.manager.service.sort.util.LoadNodeUtils;
@@ -91,7 +91,7 @@ public class LightGroupSortListener implements SortOperateListener {
             if (groupInfo.getExtList() == null) {
                 groupInfo.setExtList(Lists.newArrayList());
             }
-            upsertDataFlow(groupInfo, extInfo);
+            upsertExtInfo(groupInfo, extInfo);
             return ListenerResult.success();
         } catch (Throwable t) {
             LOGGER.error("create sort config error: ", t);
@@ -144,13 +144,9 @@ public class LightGroupSortListener implements SortOperateListener {
         return nodes;
     }
 
-    private void upsertDataFlow(InlongGroupInfo groupInfo, InlongGroupExtInfo extInfo) {
+    private void upsertExtInfo(InlongGroupInfo groupInfo, InlongGroupExtInfo extInfo) {
         groupInfo.getExtList().removeIf(ext -> InlongConstants.DATA_FLOW.equals(ext.getKeyName()));
         groupInfo.getExtList().add(extInfo);
     }
 
-    @Override
-    public boolean async() {
-        return false;
-    }
 }

@@ -21,15 +21,20 @@ import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.inlong.manager.common.enums.UserTypeEnum;
+import org.apache.inlong.manager.common.exceptions.BusinessException;
 import org.apache.inlong.manager.common.pojo.user.PasswordChangeRequest;
 import org.apache.inlong.manager.common.pojo.user.UserDetailListVO;
 import org.apache.inlong.manager.common.pojo.user.UserDetailPageRequest;
 import org.apache.inlong.manager.common.pojo.user.UserInfo;
+import org.apache.inlong.manager.common.util.AESUtils;
 import org.apache.inlong.manager.common.util.CommonBeanUtils;
+import org.apache.inlong.manager.common.util.DateUtils;
 import org.apache.inlong.manager.common.util.LoginUserUtils;
+import org.apache.inlong.manager.common.util.MD5Utils;
 import org.apache.inlong.manager.common.util.Preconditions;
-import org.apache.inlong.manager.common.util.SmallTools;
+import org.apache.inlong.manager.common.util.RSAUtils;
 import org.apache.inlong.manager.dao.entity.UserEntity;
 import org.apache.inlong.manager.dao.entity.UserEntityExample;
 import org.apache.inlong.manager.dao.entity.UserEntityExample.Criteria;
@@ -38,10 +43,10 @@ import org.apache.inlong.manager.service.core.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
-
-import static org.apache.inlong.manager.common.util.SmallTools.getOverDueDate;
+import java.util.Map;
 
 /**
  * User service layer implementation
@@ -64,15 +69,28 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserInfo getById(Integer userId) {
         Preconditions.checkNotNull(userId, "User id should not be empty");
-
         UserEntity entity = userMapper.selectByPrimaryKey(userId);
         Preconditions.checkNotNull(entity, "User not exists with id " + userId);
 
         UserInfo result = new UserInfo();
         result.setId(entity.getId());
         result.setUsername(entity.getName());
-        result.setValidDays(SmallTools.getValidDays(entity.getCreateTime(), entity.getDueDate()));
+        result.setValidDays(DateUtils.getValidDays(entity.getCreateTime(), entity.getDueDate()));
         result.setType(entity.getAccountType());
+
+        try {
+            // decipher according to stored key version
+            // note that if the version is null then the string is treated as unencrypted plain text
+            Integer version = entity.getEncryptVersion();
+            byte[] secretKeyBytes = AESUtils.decryptAsString(entity.getSecretKey(), version);
+            byte[] publicKeyBytes = AESUtils.decryptAsString(entity.getPublicKey(), version);
+            result.setSecretKey(new String(secretKeyBytes, StandardCharsets.UTF_8));
+            result.setPublicKey(new String(publicKeyBytes, StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            String errMsg = String.format("decryption error: %s", e.getMessage());
+            log.error(errMsg, e);
+            throw new BusinessException(errMsg);
+        }
 
         log.debug("success to get user info by id={}", userId);
         return result;
@@ -82,14 +100,30 @@ public class UserServiceImpl implements UserService {
     public boolean create(UserInfo userInfo) {
         String username = userInfo.getUsername();
         UserEntity userExists = getByName(username);
-        Preconditions.checkNull(userExists, "User [" + username + "] already exists");
+        Preconditions.checkNull(userExists, "username [" + username + "] already exists");
 
         UserEntity entity = new UserEntity();
         entity.setAccountType(userInfo.getType());
-        entity.setPassword(SmallTools.passwordMd5(userInfo.getPassword()));
-        entity.setDueDate(getOverDueDate(userInfo.getValidDays()));
+        entity.setPassword(MD5Utils.encrypt(userInfo.getPassword()));
+        entity.setDueDate(DateUtils.getExpirationDate(userInfo.getValidDays()));
         entity.setCreateBy(LoginUserUtils.getLoginUserDetail().getUsername());
         entity.setName(username);
+        try {
+            Map<String, String> keyPairs = RSAUtils.generateRSAKeyPairs();
+            String publicKey = keyPairs.get(RSAUtils.PUBLIC_KEY);
+            String privateKey = keyPairs.get(RSAUtils.PRIVATE_KEY);
+            String secretKey = RandomStringUtils.randomAlphanumeric(8);
+            Integer encryptVersion = AESUtils.getCurrentVersion(null);
+            entity.setEncryptVersion(encryptVersion);
+            entity.setPublicKey(AESUtils.encryptToString(publicKey.getBytes(StandardCharsets.UTF_8), encryptVersion));
+            entity.setPrivateKey(AESUtils.encryptToString(privateKey.getBytes(StandardCharsets.UTF_8), encryptVersion));
+            entity.setSecretKey(AESUtils.encryptToString(secretKey.getBytes(StandardCharsets.UTF_8), encryptVersion));
+        } catch (Exception e) {
+            String errMsg = String.format("generate rsa key error: %s", e.getMessage());
+            log.error(errMsg, e);
+            throw new BusinessException(errMsg);
+        }
+
         entity.setCreateTime(new Date());
         Preconditions.checkTrue(userMapper.insert(entity) > 0, "Create user failed");
 
@@ -99,19 +133,19 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public int update(UserInfo userInfo, String currentUser) {
-        Preconditions.checkNotNull(userInfo, "User info should not be null");
-        Preconditions.checkNotNull(userInfo.getId(), "User id should not be null");
+        Preconditions.checkNotNull(userInfo, "user info should not be null");
+        Preconditions.checkNotNull(userInfo.getId(), "user id should not be null");
 
         // Whether the current user is an administrator
         UserEntity currentUserEntity = getByName(currentUser);
         Preconditions.checkTrue(currentUserEntity.getAccountType().equals(UserTypeEnum.ADMIN.getCode()),
-                "The current user is not a manager and does not have permission to update users");
+                "current user is not a manager and does not have permission to update users");
 
         UserEntity entity = userMapper.selectByPrimaryKey(userInfo.getId());
         Preconditions.checkNotNull(entity, "User not exists with id " + userInfo.getId());
 
-        // update password by updatePassword()
-        entity.setDueDate(getOverDueDate(userInfo.getValidDays()));
+        // update password
+        entity.setDueDate(DateUtils.getExpirationDate(userInfo.getValidDays()));
         entity.setAccountType(userInfo.getType());
         entity.setName(userInfo.getUsername());
 
@@ -126,10 +160,9 @@ public class UserServiceImpl implements UserService {
         Preconditions.checkNotNull(entity, "User [" + username + "] not exists");
 
         String oldPassword = request.getOldPassword();
-        String oldPasswordMd = SmallTools.passwordMd5(oldPassword);
+        String oldPasswordMd = MD5Utils.encrypt(oldPassword);
         Preconditions.checkTrue(oldPasswordMd.equals(entity.getPassword()), "Old password is wrong");
-
-        String newPasswordMd5 = SmallTools.passwordMd5(request.getNewPassword());
+        String newPasswordMd5 = MD5Utils.encrypt(request.getNewPassword());
         entity.setPassword(newPasswordMd5);
 
         log.debug("success to update user password, username={}", username);
@@ -143,7 +176,7 @@ public class UserServiceImpl implements UserService {
         // Whether the current user is an administrator
         UserEntity entity = getByName(currentUser);
         Preconditions.checkTrue(entity.getAccountType().equals(UserTypeEnum.ADMIN.getCode()),
-                "The current user is not a manager and does not have permission to delete users");
+                "current user is not a manager and does not have permission to delete users");
 
         userMapper.deleteByPrimaryKey(userId);
         log.debug("success to delete user by id={}, current user={}", userId, currentUser);

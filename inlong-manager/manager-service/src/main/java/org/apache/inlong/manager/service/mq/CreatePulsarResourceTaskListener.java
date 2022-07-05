@@ -21,13 +21,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.inlong.manager.common.enums.ClusterType;
 import org.apache.inlong.manager.common.exceptions.WorkflowListenerException;
-import org.apache.inlong.manager.common.pojo.cluster.InlongClusterInfo;
+import org.apache.inlong.manager.common.pojo.cluster.ClusterInfo;
 import org.apache.inlong.manager.common.pojo.cluster.pulsar.PulsarClusterInfo;
 import org.apache.inlong.manager.common.pojo.group.InlongGroupInfo;
 import org.apache.inlong.manager.common.pojo.group.pulsar.InlongPulsarInfo;
 import org.apache.inlong.manager.common.pojo.pulsar.PulsarTopicBean;
 import org.apache.inlong.manager.common.pojo.stream.InlongStreamBriefInfo;
-import org.apache.inlong.manager.common.pojo.workflow.form.GroupResourceProcessForm;
+import org.apache.inlong.manager.common.pojo.workflow.form.process.GroupResourceProcessForm;
 import org.apache.inlong.manager.common.consts.InlongConstants;
 import org.apache.inlong.manager.common.util.Preconditions;
 import org.apache.inlong.manager.service.cluster.InlongClusterService;
@@ -79,8 +79,8 @@ public class CreatePulsarResourceTaskListener implements QueueOperateListener {
 
         try {
             InlongPulsarInfo pulsarInfo = (InlongPulsarInfo) groupInfo;
-            InlongClusterInfo clusterInfo = clusterService.getOne(groupInfo.getInlongClusterTag(), null,
-                    ClusterType.CLS_PULSAR);
+            ClusterInfo clusterInfo = clusterService.getOne(groupInfo.getInlongClusterTag(), null,
+                    ClusterType.PULSAR);
             this.createPulsarProcess(pulsarInfo, (PulsarClusterInfo) clusterInfo);
         } catch (Exception e) {
             log.error("create pulsar resource error for groupId={}", groupId, e);
@@ -126,11 +126,6 @@ public class CreatePulsarResourceTaskListener implements QueueOperateListener {
             }
         }
         log.info("finish to create pulsar resource for groupId={}, cluster={}", groupId, pulsarCluster);
-    }
-
-    @Override
-    public boolean async() {
-        return false;
     }
 
 }

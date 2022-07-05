@@ -20,13 +20,13 @@ package org.apache.inlong.manager.service.mq;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.inlong.manager.common.enums.ClusterType;
 import org.apache.inlong.manager.common.exceptions.WorkflowListenerException;
-import org.apache.inlong.manager.common.pojo.cluster.InlongClusterInfo;
+import org.apache.inlong.manager.common.pojo.cluster.ClusterInfo;
 import org.apache.inlong.manager.common.pojo.cluster.pulsar.PulsarClusterInfo;
 import org.apache.inlong.manager.common.pojo.group.InlongGroupInfo;
 import org.apache.inlong.manager.common.pojo.group.pulsar.InlongPulsarInfo;
 import org.apache.inlong.manager.common.pojo.pulsar.PulsarTopicBean;
 import org.apache.inlong.manager.common.pojo.stream.InlongStreamBriefInfo;
-import org.apache.inlong.manager.common.pojo.workflow.form.GroupResourceProcessForm;
+import org.apache.inlong.manager.common.pojo.workflow.form.process.GroupResourceProcessForm;
 import org.apache.inlong.manager.common.util.Preconditions;
 import org.apache.inlong.manager.service.cluster.InlongClusterService;
 import org.apache.inlong.manager.service.core.InlongStreamService;
@@ -75,8 +75,8 @@ public class DeletePulsarResourceTaskListener implements QueueOperateListener {
         }
         try {
             InlongPulsarInfo pulsarInfo = (InlongPulsarInfo) groupInfo;
-            InlongClusterInfo clusterInfo = clusterService.getOne(groupInfo.getInlongClusterTag(), null,
-                    ClusterType.CLS_PULSAR);
+            ClusterInfo clusterInfo = clusterService.getOne(groupInfo.getInlongClusterTag(), null,
+                    ClusterType.PULSAR);
             deletePulsarProcess(pulsarInfo, (PulsarClusterInfo) clusterInfo);
         } catch (Exception e) {
             log.error("delete pulsar resource error for groupId={}", groupId, e);
@@ -112,10 +112,5 @@ public class DeletePulsarResourceTaskListener implements QueueOperateListener {
             }
         }
         log.info("finish to delete pulsar resource for groupId={}, cluster={}", groupId, pulsarCluster);
-    }
-
-    @Override
-    public boolean async() {
-        return false;
     }
 }
