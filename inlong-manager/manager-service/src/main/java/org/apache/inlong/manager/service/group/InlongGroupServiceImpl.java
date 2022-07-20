@@ -36,7 +36,7 @@ import org.apache.inlong.manager.common.pojo.group.InlongGroupListResponse;
 import org.apache.inlong.manager.common.pojo.group.InlongGroupPageRequest;
 import org.apache.inlong.manager.common.pojo.group.InlongGroupRequest;
 import org.apache.inlong.manager.common.pojo.group.InlongGroupTopicInfo;
-import org.apache.inlong.manager.common.pojo.source.SourceListResponse;
+import org.apache.inlong.manager.common.pojo.source.StreamSource;
 import org.apache.inlong.manager.common.util.CommonBeanUtils;
 import org.apache.inlong.manager.common.util.Preconditions;
 import org.apache.inlong.manager.dao.entity.InlongGroupEntity;
@@ -55,6 +55,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -67,6 +68,7 @@ import java.util.stream.Collectors;
  * Inlong group service layer implementation
  */
 @Service
+@Validated
 public class InlongGroupServiceImpl implements InlongGroupService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(InlongGroupServiceImpl.class);
@@ -181,18 +183,16 @@ public class InlongGroupServiceImpl implements InlongGroupService {
             Set<String> groupIds = groupResponseList.stream().map(InlongGroupListResponse::getInlongGroupId)
                     .collect(Collectors.toSet());
             List<StreamSourceEntity> sourceEntities = streamSourceMapper.selectByGroupIds(new ArrayList<>(groupIds));
-            Map<String, List<SourceListResponse>> sourceMap = Maps.newHashMap();
+            Map<String, List<StreamSource>> sourceMap = Maps.newHashMap();
             sourceEntities.forEach(sourceEntity -> {
                 SourceType sourceType = SourceType.forType(sourceEntity.getSourceType());
                 StreamSourceOperator operation = sourceOperatorFactory.getInstance(sourceType);
-                SourceListResponse sourceListResponse = operation.getFromEntity(sourceEntity, SourceListResponse::new);
-                sourceMap.computeIfAbsent(sourceEntity.getInlongGroupId(), k -> Lists.newArrayList())
-                        .add(sourceListResponse);
+                StreamSource source = operation.getFromEntity(sourceEntity);
+                sourceMap.computeIfAbsent(sourceEntity.getInlongGroupId(), k -> Lists.newArrayList()).add(source);
             });
             groupResponseList.forEach(group -> {
-                List<SourceListResponse> sourceListResponses = sourceMap.getOrDefault(group.getInlongGroupId(),
-                        Lists.newArrayList());
-                group.setSourceResponses(sourceListResponses);
+                List<StreamSource> sources = sourceMap.getOrDefault(group.getInlongGroupId(), Lists.newArrayList());
+                group.setStreamSources(sources);
             });
         }
         PageInfo<InlongGroupListResponse> page = new PageInfo<>(groupResponseList);
@@ -206,7 +206,6 @@ public class InlongGroupServiceImpl implements InlongGroupService {
             propagation = Propagation.REQUIRES_NEW)
     public String update(InlongGroupRequest request, String operator) {
         LOGGER.debug("begin to update inlong group={} by user={}", request, operator);
-        Preconditions.checkNotNull(request, "inlong group request cannot be empty");
 
         String groupId = request.getInlongGroupId();
         InlongGroupEntity entity = groupMapper.selectByGroupId(groupId);
@@ -348,28 +347,23 @@ public class InlongGroupServiceImpl implements InlongGroupService {
 
     @Override
     @Transactional(rollbackFor = Throwable.class, propagation = Propagation.REQUIRES_NEW)
-    public boolean updateAfterApprove(InlongGroupApproveRequest approveInfo, String operator) {
-        LOGGER.debug("begin to update inlong group after approve={}", approveInfo);
-        Preconditions.checkNotNull(approveInfo, "inlong approve request cannot be empty");
-        String groupId = approveInfo.getInlongGroupId();
-        Preconditions.checkNotNull(groupId, ErrorCodeEnum.GROUP_ID_IS_EMPTY.getMessage());
-        String mqType = approveInfo.getMqType();
-        Preconditions.checkNotNull(mqType, "MQ type cannot be empty");
+    public void updateAfterApprove(InlongGroupApproveRequest approveRequest, String operator) {
+        LOGGER.debug("begin to update inlong group after approve={}", approveRequest);
+        String groupId = approveRequest.getInlongGroupId();
 
         // update status to [GROUP_APPROVE_PASSED]
         this.updateStatus(groupId, GroupStatus.APPROVE_PASSED.getCode(), operator);
 
         // update other info for inlong group after approve
-        if (StringUtils.isNotBlank(approveInfo.getInlongClusterTag())) {
+        if (StringUtils.isNotBlank(approveRequest.getInlongClusterTag())) {
             InlongGroupEntity entity = new InlongGroupEntity();
-            entity.setInlongGroupId(approveInfo.getInlongGroupId());
-            entity.setInlongClusterTag(approveInfo.getInlongClusterTag());
+            entity.setInlongGroupId(approveRequest.getInlongGroupId());
+            entity.setInlongClusterTag(approveRequest.getInlongClusterTag());
             entity.setModifier(operator);
             groupMapper.updateByIdentifierSelective(entity);
         }
 
         LOGGER.info("success to update inlong group status after approve for groupId={}", groupId);
-        return true;
     }
 
     @Override
